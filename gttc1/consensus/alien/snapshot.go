@@ -254,7 +254,8 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 
 		snap.ConfirmedNumber = headerExtra.ConfirmedBlockNumber
 
-		// HistoryHash 维持个数MaxSignerCount*2
+		// HistoryHash 维持个数不超过MaxSignerCount*2
+		// 这里为什么要两轮？？？
 		if len(snap.HistoryHash) >= int(s.config.MaxSignerCount)*2 {
 			snap.HistoryHash = snap.HistoryHash[1 : int(s.config.MaxSignerCount)*2]
 		}
@@ -310,7 +311,6 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 
 	snap.updateSnapshotForExpired()
 	err := snap.verifyTallyCnt()
-
 
 	if err != nil {
 		return nil, err
@@ -474,7 +474,11 @@ func (s *Snapshot) updateSnapshotForExpired() {
 			s.Tally[expiredVote.Candidate].Sub(s.Tally[expiredVote.Candidate], expiredVote.Stake)
 			if s.Tally[expiredVote.Candidate].Cmp(big.NewInt(0)) == 0 {
 				delete(s.Tally, expiredVote.Candidate)
+				fmt.Printf("ccc delete candidate:%s from voter:%s \n", expiredVote.Candidate.Hex(), expiredVote.Voter.Hex())
 			}
+			//
+			fmt.Printf("ccc delete vote:%s \n", expiredVote.Voter.Hex())
+
 			delete(s.Votes, expiredVote.Voter)
 			delete(s.Voters, expiredVote.Voter)
 		}

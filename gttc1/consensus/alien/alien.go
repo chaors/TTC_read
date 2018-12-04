@@ -691,6 +691,9 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 				return nil, err
 			}
 
+			//chaorstest
+			fmt.Printf("ccc create newSignerQueue...\n")
+
 			currentHeaderExtra.SignerQueue = newSignerQueue
 
 		}
