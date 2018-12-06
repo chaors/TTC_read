@@ -261,7 +261,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		}
 		snap.HistoryHash = append(snap.HistoryHash, header.Hash())
 
-		//chaorstest
+		/*chaorstest
 		fmt.Printf("ccc current HistoryHash:\n")
 		for _, hash := range snap.HistoryHash {
 
@@ -272,7 +272,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 
 			fmt.Println(signer.Hex())
 		}
-		//chaorstest
+		chaorstest*/
 
 
 
@@ -612,7 +612,7 @@ func (s *Snapshot) updateSnapshotForPunish(signerMissing []common.Address, heade
 			s.Punished[signerMissing] = missingPublishCredit
 		}
 		fmt.Println("ccc signerPunished after", signerMissing.Hex(), s.Punished[signerMissing])
-	}
+}
 	// reduce the punish of sign signer
 	if _, ok := s.Punished[coinbase]; ok {
 

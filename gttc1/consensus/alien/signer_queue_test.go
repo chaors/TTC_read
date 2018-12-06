@@ -30,143 +30,143 @@ import (
 // Tests that voting is evaluated correctly for various simple and complex scenarios.
 func TestQueue(t *testing.T) {
 	// Define the various voting scenarios to test
-	//
-	//tests := []struct {
-	//	addrNames      []string // accounts used in this case
-	//	signers        []string
-	//	number         uint64
-	//	maxSignerCount uint64
-	//	historyHash    []string
-	//	tally          map[string]uint64
-	//	punished       map[string]uint64
-	//	result         []string // the result of current snapshot
-	//}{
-	//	{
-	//		/* 	Case 0:
-	//		*   new loop signer queue is create at blocknumber 2,
-	//		*   the new signerQueue is selected by tally, and random order depends on history hash
-	//		*   step 1: the top 3(maxSignerCount) is selected order by tally -> A, B, C
-	//		*   step 2: the top 3 signer is map to historyHash A->c, B->b, C->a
-	//		*   step 3: the result order is set by historyHash decrease -> A, B, C
-	//		 */
-	//		addrNames:      []string{"A", "B", "C", "D"},
-	//		signers:        []string{"A", "B", "C", "D"},
-	//		number:         2,
-	//		maxSignerCount: 3,
-	//		historyHash:    []string{"a", "b", "c"},
-	//		tally:          map[string]uint64{"D": 5, "A": 30, "B": 20, "C": 10},
-	//		punished:       map[string]uint64{},
-	//		result:         []string{"A", "B", "C"},
-	//		// abcd -->
-	//	},
-	//	{
-	//		/* 	Case 1:
-	//		*   follow test case 0. the tally is same but history hash is x,b,c
-	//		*   step 1: the top 3(maxSignerCount) is selected order by tally -> A, B, C
-	//		*   step 2: the top 3 signer is map to historyHash A->c, B->b, C->x
-	//		*   step 3: the result order is set by historyHash decrease -> C, A, B
-	//		*
-	//		 */
-	//		addrNames:      []string{"A", "B", "C"},
-	//		signers:        []string{"A", "B", "C"},
-	//		number:         2,
-	//		maxSignerCount: 3,
-	//		historyHash:    []string{"x", "b", "c"},
-	//		tally:          map[string]uint64{"A": 30, "B": 20, "C": 10},
-	//		punished:       map[string]uint64{},
-	//		result:         []string{"C", "A", "B"},
-	//	},
-	//	{
-	//		/* 	Case 2:
-	//		*   fllow test case 0. the tally is same but history hash is a,x,c
-	//		*   step 1: the top 3(maxSignerCount) is selected order by tally -> A, B, C
-	//		*   step 2: the top 3 signer is map to historyHash A->c, B->x, C->a
-	//		*   step 3: the result order is set by historyHash decrease -> B, A, C
-	//		*
-	//		 */
-	//		addrNames:      []string{"A", "B", "C"},
-	//		signers:        []string{"A", "B", "C"},
-	//		number:         2,
-	//		maxSignerCount: 3,
-	//		historyHash:    []string{"a", "x", "c"},
-	//		tally:          map[string]uint64{"A": 30, "B": 20, "C": 10},
-	//		punished:       map[string]uint64{},
-	//		result:         []string{"B", "A", "C"},
-	//	},
-	//	{
-	//		/* 	Case 3:
-	//		*   fllow test case 0. the tally is changed and history hash is a,b,c
-	//		*   step 1: the top 3(maxSignerCount) is selected order by tally -> B, A, C
-	//		*   step 2: the top 3 signer is map to historyHash B->c, A->b, C->a
-	//		*   step 3: the result order is set by historyHash decrease -> B, A, C
-	//		*
-	//		 */
-	//		addrNames:      []string{"A", "B", "C"},
-	//		signers:        []string{"A", "B", "C"},
-	//		number:         2,
-	//		maxSignerCount: 3,
-	//		historyHash:    []string{"a", "b", "c"},
-	//		tally:          map[string]uint64{"A": 30, "B": 40, "C": 10},
-	//		punished:       map[string]uint64{},
-	//		result:         []string{"B", "A", "C"},
-	//	},
-	//	{
-	//		/* 	Case 4:
-	//		*   fllow test case 0. the tally is changed and history hash is x,b,c
-	//		*   step 1: the top 3(maxSignerCount) is selected order by tally -> B, A, C
-	//		*   step 2: the top 3 signer is map to historyHash B->c, A->b, C->x
-	//		*   step 3: the result order is set by historyHash decrease -> C, B, A
-	//		*
-	//		 */
-	//		addrNames:      []string{"A", "B", "C"},
-	//		signers:        []string{"A", "B", "C"},
-	//		number:         2,
-	//		maxSignerCount: 3,
-	//		historyHash:    []string{"x", "b", "c"},
-	//		tally:          map[string]uint64{"A": 30, "B": 40, "C": 10},
-	//		punished:       map[string]uint64{},
-	//		result:         []string{"C", "B", "A"},
-	//	},
-	//	{
-	//		/* 	Case 5:
-	//		*   fllow test case 0. the tally is changed and history hash is a,b,c
-	//		*   step 1: the top 3(maxSignerCount) is selected order by tally -> but same tally
-	//		*   step 2: order by address (NOT A, B, C , address is [20]byte) desc, different by each test.
-	//		*   step 3: the top 3 signer is map to historyHash
-	//		*   step 4: the result order is set by historyHash decrease
-	//		*   The result will be checked if order by address desc if result if empty
-	//		 */
-	//		addrNames:      []string{"A", "B", "C"},
-	//		signers:        []string{"A", "B", "C"},
-	//		number:         2,
-	//		maxSignerCount: 3,
-	//		historyHash:    []string{"a", "b", "c"},
-	//		tally:          map[string]uint64{"A": 30, "B": 30, "C": 30},
-	//		punished:       map[string]uint64{},
-	//		result:         []string{}, // If tally(punished include) is same, then result order by their address
-	//	},
-	//	{
-	//		/* 	Case 6:
-	//		*   fllow test case 0. the tally is changed and history hash is x,b,c
-	//		*   step 1: the top 3(maxSignerCount) is selected order by tally -> same tally
-	//		*   step 2: consider the punished for each account, result order -> A, B, C
-	//		*   step 3: the top 3 signer is map to historyHash A->c, B->b, C->x
-	//		*   step 4: the result order is set by historyHash decrease -> C, A, B
-	//		*
-	//		 */
-	//		addrNames:      []string{"A", "B", "C"},
-	//		signers:        []string{"A", "B", "C"},
-	//		number:         2,
-	//		maxSignerCount: 3,
-	//		historyHash:    []string{"x", "b", "c"},
-	//		tally:          map[string]uint64{"A": 300, "B": 300, "C": 300},
-	//		punished:       map[string]uint64{"A": 500, "B": 600, "C": 800},
-	//		result:         []string{"C", "A", "B"},
-	//	},
-	//}
+
+	tests := []struct {
+		addrNames      []string // accounts used in this case
+		signers        []string
+		number         uint64    //???测试这里为啥用Number
+		maxSignerCount uint64
+		historyHash    []string
+		tally          map[string]uint64
+		punished       map[string]uint64
+		result         []string // the result of current snapshot
+	}{
+		{
+			/* 	Case 0:
+			*   new loop signer queue is create at blocknumber 2,
+			*   the new signerQueue is selected by tally, and random order depends on history hash
+			*   step 1: the top 3(maxSignerCount) is selected order by tally -> A, B, C
+			*   step 2: the top 3 signer is map to historyHash A->c, B->b, C->a
+			*   step 3: the result order is set by historyHash decrease -> A, B, C
+			 */
+			addrNames:      []string{"A", "B", "C", "D"},
+			signers:        []string{"A", "B", "C", "D"},
+			number:         2,
+			maxSignerCount: 3,
+			historyHash:    []string{"a", "b", "c"},
+			tally:          map[string]uint64{"D": 5, "A": 30, "B": 20, "C": 10},//a   c   bb  cy  --> c  a b
+			punished:       map[string]uint64{},
+			result:         []string{"A", "B", "C"},
+			// abcd -->
+		},
+		{
+			/* 	Case 1:
+			*   follow test case 0. the tally is same but history hash is x,b,c
+			*   step 1: the top 3(maxSignerCount) is selected order by tally -> A, B, C
+			*   step 2: the top 3 signer is map to historyHash A->c, B->b, C->x
+			*   step 3: the result order is set by historyHash decrease -> C, A, B
+			*
+			 */
+			addrNames:      []string{"A", "B", "C"},
+			signers:        []string{"A", "B", "C"},
+			number:         2,
+			maxSignerCount: 3,
+			historyHash:    []string{"x", "b", "c"},
+			tally:          map[string]uint64{"A": 30, "B": 20, "C": 10},
+			punished:       map[string]uint64{},
+			result:         []string{"C", "A", "B"},
+		},
+		{
+			/* 	Case 2:
+			*   fllow test case 0. the tally is same but history hash is a,x,c
+			*   step 1: the top 3(maxSignerCount) is selected order by tally -> A, B, C
+			*   step 2: the top 3 signer is map to historyHash A->c, B->x, C->a
+			*   step 3: the result order is set by historyHash decrease -> B, A, C
+			*
+			 */
+			addrNames:      []string{"A", "B", "C"},
+			signers:        []string{"A", "B", "C"},
+			number:         2,
+			maxSignerCount: 3,
+			historyHash:    []string{"a", "x", "c"},
+			tally:          map[string]uint64{"A": 30, "B": 20, "C": 10},//Ac Bx  Ca  bac
+			punished:       map[string]uint64{},
+			result:         []string{"B", "A", "C"},
+		},
+		{
+			/* 	Case 3:
+			*   fllow test case 0. the tally is changed and history hash is a,b,c
+			*   step 1: the top 3(maxSignerCount) is selected order by tally -> B, A, C
+			*   step 2: the top 3 signer is map to historyHash B->c, A->b, C->a
+			*   step 3: the result order is set by historyHash decrease -> B, A, C
+			*
+			 */
+			addrNames:      []string{"A", "B", "C"},
+			signers:        []string{"A", "B", "C"},
+			number:         2,
+			maxSignerCount: 3,
+			historyHash:    []string{"a", "b", "c"},
+			tally:          map[string]uint64{"A": 30, "B": 40, "C": 10},//B
+			punished:       map[string]uint64{},
+			result:         []string{"B", "A", "C"},
+		},
+		{
+			/* 	Case 4:
+			*   fllow test case 0. the tally is changed and history hash is x,b,c
+			*   step 1: the top 3(maxSignerCount) is selected order by tally -> B, A, C
+			*   step 2: the top 3 signer is map to historyHash B->c, A->b, C->x
+			*   step 3: the result order is set by historyHash decrease -> C, B, A
+			*
+			 */
+			addrNames:      []string{"A", "B", "C"},
+			signers:        []string{"A", "B", "C"},
+			number:         2,
+			maxSignerCount: 3,
+			historyHash:    []string{"x", "b", "c"},
+			tally:          map[string]uint64{"A": 30, "B": 40, "C": 10},
+			punished:       map[string]uint64{},
+			result:         []string{"C", "B", "A"},
+		},
+		{
+			/* 	Case 5:
+			*   fllow test case 0. the tally is changed and history hash is a,b,c
+			*   step 1: the top 3(maxSignerCount) is selected order by tally -> but same tally
+			*   step 2: order by address (NOT A, B, C , address is [20]byte) desc, different by each test.
+			*   step 3: the top 3 signer is map to historyHash
+			*   step 4: the result order is set by historyHash decrease
+			*   The result will be checked if order by address desc if result if empty
+			 */
+			addrNames:      []string{"A", "B", "C"},
+			signers:        []string{"A", "B", "C"},
+			number:         2,
+			maxSignerCount: 3,
+			historyHash:    []string{"a", "b", "c"},
+			tally:          map[string]uint64{"A": 30, "B": 30, "C": 30},
+			punished:       map[string]uint64{},
+			result:         []string{}, // If tally(punished include) is same, then result order by their address
+		},
+		{
+			/* 	Case 6:
+			*   fllow test case 0. the tally is changed and history hash is x,b,c
+			*   step 1: the top 3(maxSignerCount) is selected order by tally -> same tally
+			*   step 2: consider the punished for each account, result order -> A, B, C
+			*   step 3: the top 3 signer is map to historyHash A->c, B->b, C->x
+			*   step 4: the result order is set by historyHash decrease -> C, A, B
+			*
+			 */
+			addrNames:      []string{"A", "B", "C"},
+			signers:        []string{"A", "B", "C"},
+			number:         2,
+			maxSignerCount: 3,
+			historyHash:    []string{"x", "b", "c"},
+			tally:          map[string]uint64{"A": 300, "B": 300, "C": 300},
+			punished:       map[string]uint64{"A": 500, "B": 600, "C": 800},//Ac Bb Cx
+			result:         []string{"C", "A", "B"},
+		},
+	}
 
 
-	 ///**chaorstest
+	 /**chaorstest
 	tests := []struct {
 		addrNames      []string // accounts used in this case
 		signers        []string
@@ -177,30 +177,42 @@ func TestQueue(t *testing.T) {
 		punished       map[string]uint64
 		result         []string // the result of current snapshot
 	}{
+		//{
+		//	// candidate数量小于maxSignerCount
+		//	addrNames:      []string{"A", "B"},
+		//	signers:        []string{"A", "B", "A"},
+		//	number:         2,
+		//	maxSignerCount: 3,
+		//	historyHash:    []string{"y", "c"},
+		//	tally:          map[string]uint64{"A": 30, "B": 20},
+		//	punished:       map[string]uint64{},
+		//	result:         []string{"B", "A", "B"},//???why
+		//	// abcd -->
+		//},
+		//{
+		//	addrNames:      []string{"A", "B", "C", "D"},
+		//	signers:        []string{"A", "B", "C", "D"},
+		//	number:         2,
+		//	maxSignerCount: 3,
+		//	historyHash:    []string{"a", "b", "c"},
+		//	tally:          map[string]uint64{"D": 5, "A": 30, "B": 20, "C": 10},//
+		//	punished:       map[string]uint64{"A":1000, "B":300, "C":250},
+		//	result:         []string{"B", "C", "B"},
+		//},
 		{
-			// candidate数量小于maxSignerCount
-			addrNames:      []string{"A", "B"},
-			signers:        []string{"A", "B", "A"},
-			number:         2,
-			maxSignerCount: 3,
-			historyHash:    []string{"y", "c"},
-			tally:          map[string]uint64{"A": 30, "B": 20},
-			punished:       map[string]uint64{},
-			result:         []string{"B", "A", "B"},
-			// abcd -->
-		},
-		{
+			//
 			addrNames:      []string{"A", "B", "C", "D"},
 			signers:        []string{"A", "B", "C", "D"},
 			number:         2,
 			maxSignerCount: 3,
-			historyHash:    []string{"a", "b", "c"},
-			tally:          map[string]uint64{"D": 5, "A": 30, "B": 20, "C": 10},//
-			punished:       map[string]uint64{"A":1000, "B":300, "C":250},
-			result:         []string{"B", "C", "B"},
+			historyHash:    []string{"y", "c", "d"},
+			tally:          map[string]uint64{"A": 30, "B": 20, "C":10, "D":35},
+			punished:       map[string]uint64{},
+			result:         []string{"B", "D", "A"},//???
+			// abcd -->
 		},
 	}
-	//chaorstest*/
+	chaorstest*/
 
 	// Run through the scenarios and test them
 	for i, tt := range tests {
