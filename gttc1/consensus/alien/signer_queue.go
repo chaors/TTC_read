@@ -178,14 +178,14 @@ func (s *Snapshot) createSignerQueue() ([]common.Address, error) {
 	fmt.Printf("ccc signerSlice last loop:\n")
 	for _, tally := range signerSlice[:] {
 		fmt.Println(tally.addr.Hex())
-		fmt.Printf("common:\n")
-		fmt.Println(tally.hash.Hex())
+		//fmt.Printf("common:\n")
+		//fmt.Println(tally.hash.Hex())
 	}
-
+	/**
 	fmt.Printf("ccc historyHas:\n")
 	for _, hash := range s.HistoryHash {
 		fmt.Println(hash.Hex())
-	}
+	}*/
 
 	//chaorstest
 	sort.Sort(SignerSlice(signerSlice))

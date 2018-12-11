@@ -850,7 +850,7 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		// rewards for the miner
 
 		//chaorstest
-		log.Info("ccc set rewards for miner", header.Coinbase)
+		fmt.Printf("ccc set rewards:%d for miner:%s", minerReward, header.Coinbase.Hex())
 
 		state.AddBalance(header.Coinbase, minerReward)
 	} else {

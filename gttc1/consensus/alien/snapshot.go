@@ -454,7 +454,7 @@ func (s *Snapshot) updateSnapshotForExpired() {
 	for voterAddress, voteNumber := range s.Voters {
 
 		// chaorstest
-		fmt.Printf("ccc updateSnapshotForExpired number:%d----voteNumber:%d---Epoch:%d\n", s.Number, voteNumber.Uint64(), s.config.Epoch)
+		//fmt.Printf("ccc updateSnapshotForExpired number:%d----voteNumber:%d---Epoch:%d\n", s.Number, voteNumber.Uint64(), s.config.Epoch)
 		if s.Number-voteNumber.Uint64() > s.config.Epoch {
 			// clear the vote
 			fmt.Printf("ccc Expired count...")
@@ -464,7 +464,7 @@ func (s *Snapshot) updateSnapshotForExpired() {
 		}
 	}
 	// remove expiredVotes only enough voters left
-	fmt.Printf("ccc expiredVotes VotersCount:%d----expiredVotesCount:%d---maxSig:%d\n", len(s.Voters), len(expiredVotes), s.config.MaxSignerCount)
+	//fmt.Printf("ccc expiredVotes VotersCount:%d----expiredVotesCount:%d---maxSig:%d\n", len(s.Voters), len(expiredVotes), s.config.MaxSignerCount)
 	// 过期投票的处理原则：并不是过期票就作废，过期票的处理是为了当投票数超过最大签名者数的时候，在投票中能优先选出
 	// 票数最多投票最近的那些被投的那些候选者作为签名者  eg：5个投票其中3个过期，最大签名者为4，这个时候过期的投票并不会立即更新其候选者的
 	// 票数(因为如果这样就可能只剩2个候选人签名，但一个轮次还是出4个块)  即当有效投票数大于等于最大签名者数量时才会去执行过期的操作

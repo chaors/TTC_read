@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/TTCECO/gttc/core/state"
 	"math/big"
 	"testing"
 
@@ -111,6 +112,39 @@ func (ap *testerAccountPool) name(address common.Address) string {
 	return ""
 }
 
+//accumulateRewards
+func (ap *testerAccountPool)accumulateRewards(config *params.ChainConfig, header *types.Header, snap *Snapshot, state *state.StateDB) {
+
+	// Calculate the block reword by year
+	blockNumPerYear := secondsPerYear / config.Alien.Period
+	yearCount := header.Number.Uint64() / blockNumPerYear
+	blockReward := new(big.Int).Rsh(SignerBlockReward, uint(yearCount))
+
+	minerReward := new(big.Int).Set(blockReward)
+	minerReward.Mul(minerReward, big.NewInt(int64(minerRewardPerThousand)))
+	minerReward.Div(minerReward, big.NewInt(1000))
+
+	votersReward := blockReward.Sub(blockReward, minerReward)
+
+	fmt.Printf("accumulateRewards for singer:%s\n---%d---%d---%d", header.Coinbase.Hex(), minerReward, votersReward, SignerBlockReward)
+
+	state.AddBalance(header.Coinbase, minerReward)
+	for voter, reward := range snap.calculateReward(header.Coinbase, votersReward) {
+		state.AddBalance(voter, reward)
+	}
+}
+
+func CalReward(m *big.Int, mCount *big.Int, v *big.Int, vCount *big.Int, bal *big.Int, allStake *big.Int) *big.Int {
+
+	m.Mul(m, mCount)
+	v.Mul(v, vCount)
+	v.Mul(v,bal)
+	v.Div(v,allStake)
+
+	return m.Sub(m, v)
+}
+
+
 // testerChainReader implements consensus.ChainReader to access the genesis
 // block. All other methods and requests will panic.
 type testerChainReader struct {
@@ -131,7 +165,7 @@ func (r *testerChainReader) GetHeaderByNumber(number uint64) *types.Header {
 
 // Tests that voting is evaluated correctly for various simple and complex scenarios.
 func TestVoting(t *testing.T) {
-	// Define the various voting scenarios to test
+	//// Define the various voting scenarios to test
 	//tests := []struct {
 	//	addrNames        []string             // accounts used in this case
 	//	candidateNeedPD  bool                 // candidate from POA
@@ -425,7 +459,7 @@ func TestVoting(t *testing.T) {
 	//			{[]testerTransaction{{from: "B", to: "B", balance: 200, isVote: true}}},
 	//			{[]testerTransaction{}},//15
 	//			{[]testerTransaction{}},//16
-	//		},//a 100  d 110(12) k 80(12) I 160(12)  F 130(13)  B 200(14)  bfdik a
+	//		},//a 100  d 110(12) k 80(12) I 160(12)  F 130(13)  B 200(14)  bfdi a k
 	//		result: testerSnapshot{
 	//			Signers: []string{"B", "D", "F", "I", "K"},
 	//			Tally:   map[string]int{"B": 200, "D": 110, "I": 160, "F": 130, "K": 80},
@@ -470,7 +504,7 @@ func TestVoting(t *testing.T) {
 	//				"C": {"C", "D", 110},
 	//				"D": {"D", "C", 80},
 	//			},
-	//		},
+	//		},//t++多个账号给一个candidate投，内分新轮次是否到来
 	//	},
 	//	{
 	//		/*	Case 9:
@@ -493,7 +527,7 @@ func TestVoting(t *testing.T) {
 	//			{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
 	//			{[]testerTransaction{}},
 	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
+	//			{[]testerTransaction{}},// 720083
 	//			{[]testerTransaction{}},
 	//		},// a 100(1) b 200(1)  D 200(3)  > 2*5 -- > 11那重算队列  ab
 	//		result: testerSnapshot{
@@ -677,9 +711,10 @@ func TestVoting(t *testing.T) {
 	//			Votes: map[string]*testerVote{
 	//				"A": {"A", "A", 100},
 	//				"B": {"B", "B", 200},
+	//				//"C": {"C", "D", 200},
 	//			},
 	//		},
-	//	},
+	//	},//t+++ candidateNeedPD 开关测试vote
 	//	{
 	//		/*	Case 13:
 	//		*   Candidate from Poa is enable
@@ -866,40 +901,40 @@ func TestVoting(t *testing.T) {
 		vlCnt            uint64
 	}{
 		//+++8 A Vote到期但是还没有加入signers
-		//{
-		//	//addrNames:        []string{"A", "B", "C"},
-		//	addrNames:        []string{"A", "B", "C", "D", "E", "F", "H", "I", "J"},
-		//	period:           uint64(3),
-		//	epoch:            uint64(8),
-		//	maxSignerCount:   uint64(5),
-		//	minVoterBalance:  50,
-		//	lcrs:             1,
-		//	genesisTimestamp: uint64(0),
-		//	selfVoters:       []testerSelfVoter{{"A", 220}},
-		//	txHeaders: []testerSingleHeader{
-		//		{[]testerTransaction{}},//{from: "B", to: "B", balance: 205, isVote: true}
-		//		{[]testerTransaction{}},
-		//		{[]testerTransaction{}},
-		//		{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}, {from: "D", to: "C", balance: 260, isVote: true}, {from: "E", to: "E", balance: 280, isVote: true}, {from: "F", to: "H", balance: 320, isVote: true}, {from: "H", to: "I", balance: 210, isVote: true}}},
-		//		{[]testerTransaction{}},//5
-		//		{[]testerTransaction{}}, //
-		//		{[]testerTransaction{}},
-		//		{[]testerTransaction{}},
-		//		{[]testerTransaction{}},//9
-		//	},
-		//	result: testerSnapshot{
-		//		Signers: []string{"A", "C", "E", "H", "I"},
-		//		Tally:   map[string]int{"D": 200, "C":260, "E":280, "H":320, "I":210},
-		//		Voters:  map[string]int{"C": 4, "D":4, "E":4, "F":4, "H":4},
-		//		Votes: map[string]*testerVote{
-		//			"C": {"C", "D", 200},
-		//			"D": {"D", "C", 260},
-		//			"E": {"E", "E", 280},
-		//			//"B": {"B", "B", 200},
-		//			"F": {"F", "H", 320},
-		//			"H": {"H", "I", 210},
-		//		},
-		//	},
+		{
+			//addrNames:        []string{"A", "B", "C"},
+			addrNames:        []string{"A", "B", "C", "D", "E", "F", "H", "I", "J"},
+			period:           uint64(3),
+			epoch:            uint64(8),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 220}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},//{from: "B", to: "B", balance: 205, isVote: true}
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}, {from: "D", to: "C", balance: 260, isVote: true}, {from: "E", to: "E", balance: 280, isVote: true}, {from: "F", to: "H", balance: 320, isVote: true}, {from: "H", to: "I", balance: 210, isVote: true}}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}}, //
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//9
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "C", "E", "H", "I"},
+				Tally:   map[string]int{"D": 200, "C":260, "E":280, "H":320, "I":210},
+				Voters:  map[string]int{"C": 4, "D":4, "E":4, "F":4, "H":4},
+				Votes: map[string]*testerVote{
+					"C": {"C", "D", 200},
+					"D": {"D", "C", 260},
+					"E": {"E", "E", 280},
+					//"B": {"B", "B", 200},
+					"F": {"F", "H", 320},
+					"H": {"H", "I", 210},
+				},
+			},
 
 		// +++7A到期同时已经加入signers
 		//{
@@ -1171,47 +1206,452 @@ func TestVoting(t *testing.T) {
 		//	},
 		//},
 
-		//case7
-		{
-					addrNames:        []string{"A", "B", "C", "D", "E", "F", "H", "I", "J", "K"},
-					period:           uint64(3),
-					epoch:            uint64(8),
-					maxSignerCount:   uint64(5),
-					minVoterBalance:  50,
-					lcrs:             1,
-					genesisTimestamp: uint64(0),
-					selfVoters:       []testerSelfVoter{{"A", 100}},
-					txHeaders: []testerSingleHeader{
-						{[]testerTransaction{}},
-						{[]testerTransaction{}},
-						{[]testerTransaction{}},
-						{[]testerTransaction{}},
-						{[]testerTransaction{}},//5
-						{[]testerTransaction{}},
-						{[]testerTransaction{}},
-						{[]testerTransaction{}},
-						{[]testerTransaction{}},
-						{[]testerTransaction{}},//10
-						{[]testerTransaction{}},
-						{[]testerTransaction{{from: "C", to: "D", balance: 110, isVote: true}, {from: "J", to: "K", balance: 80, isVote: true}, {from: "H", to: "I", balance: 160, isVote: true}}},
-						{[]testerTransaction{{from: "E", to: "F", balance: 130, isVote: true}}},
-						{[]testerTransaction{{from: "B", to: "B", balance: 200, isVote: true}}},
-						{[]testerTransaction{}},//15
-						//{[]testerTransaction{}},//16
-					},//a 100  d 110(12) k 80(12) I 160(12)  F 130(13)  B 200(14)  bfdik a
-					result: testerSnapshot{
-						Signers: []string{"B", "D", "F", "I", "K"},
-						Tally:   map[string]int{"B": 200, "D": 110, "I": 160, "F": 130, "K": 80},
-						Voters:  map[string]int{"B": 14, "C": 12, "H": 12, "J": 12, "E": 13},
-						Votes: map[string]*testerVote{
-							"B": {"B", "B", 200},
-							"C": {"C", "D", 110},
-							"J": {"J", "K", 80},
-							"H": {"H", "I", 160},
-							"E": {"E", "F", 130},
-						},
-					},
-				},
+		// base21 case
+//		{
+//			addrNames: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+//					"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
+//					"A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30",
+//					"A31", "A32", "A33", "A34", "A35", "A36", "A37", "A38", "A39", "A40"},
+//			period:           uint64(3),
+//			epoch:            uint64(300),
+//			maxSignerCount:   uint64(21),
+//			minVoterBalance:  50,
+//			lcrs:             1,
+//			genesisTimestamp: uint64(0),
+//			selfVoters: []testerSelfVoter{{"A1", 5000}, {"A2", 5000}, {"A3", 5000}, {"A4", 5000}, {"A5", 5000},
+//									{"A6", 5000}, {"A7", 5000}, {"A8", 5000}, {"A9", 5000}, {"A10", 5000},
+//									{"A11", 4000}, {"A12", 4000}, {"A13", 4000}, {"A14", 4000}, {"A15", 4000},
+//									{"A16", 4000}, {"A17", 4000}, {"A18", 4000}, {"A19", 4000}, {"A20", 4000},
+//									{"A21", 3000}, {"A22", 3000}, {"A23", 3000}, {"A24", 3000}, {"A25", 3000},
+//									{"A26", 3000}, {"A27", 3000}, {"A28", 3000}, {"A29", 3000}, {"A30", 3000},
+//									{"A31", 2000}, {"A32", 2000}, {"A33", 2000}, {"A34", 2000}, {"A35", 2000},
+//									{"A36", 2000}, {"A37", 2000}, {"A38", 2000}, {"A39", 2000}, {"A40", 2000}},
+//			txHeaders: []testerSingleHeader{
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}},//21
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, //42
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+//					//50
+//		},
+//		result: testerSnapshot{
+//		Signers: []string{},
+//		Tally: map[string]int{"A1": 5000, "A2": 5000, "A3": 5000, "A4": 5000, "A5": 5000, "A6": 5000, "A7": 5000, "A8": 5000, "A9": 5000, "A10": 5000,
+//			"A11": 4000, "A12": 4000, "A13": 4000, "A14": 4000, "A15": 4000, "A16": 4000, "A17": 4000, "A18": 4000, "A19": 4000, "A20": 4000,
+//			"A21": 3000, "A22": 3000, "A23": 3000, "A24": 3000, "A25": 3000, "A26": 3000, "A27": 3000, "A28": 3000, "A29": 3000, "A30": 3000,
+//			"A31": 2000, "A32": 2000, "A33": 2000, "A34": 2000, "A35": 2000, "A36": 2000, "A37": 2000, "A38": 2000, "A39": 2000, "A40": 2000},
+//		Voters: map[string]int{"A1": 0, "A2": 0, "A3": 0, "A4": 0, "A5": 0, "A6": 0, "A7": 0, "A8": 0, "A9": 0, "A10": 0,
+//			"A11": 0, "A12": 0, "A13": 0, "A14": 0, "A15": 0, "A16": 0, "A17": 0, "A18": 0, "A19": 0, "A20": 0,
+//			"A21": 0, "A22": 0, "A23": 0, "A24": 0, "A25": 0, "A26": 0, "A27": 0, "A28": 0, "A29": 0, "A30": 0,
+//			"A31": 0, "A32": 0, "A33": 0, "A34": 0, "A35": 0, "A36": 0, "A37": 0, "A38": 0, "A39": 0, "A40": 0},
+//		Votes: map[string]*testerVote{
+//			"A1":  {"A1", "A1", 5000},
+//			"A2":  {"A2", "A2", 5000},
+//			"A3":  {"A3", "A3", 5000},
+//			"A4":  {"A4", "A4", 5000},
+//			"A5":  {"A5", "A5", 5000},
+//			"A6":  {"A6", "A6", 5000},
+//			"A7":  {"A7", "A7", 5000},
+//			"A8":  {"A8", "A8", 5000},
+//			"A9":  {"A9", "A9", 5000},
+//			"A10": {"A10", "A10", 5000},
+//			"A11": {"A11", "A11", 4000},
+//			"A12": {"A12", "A12", 4000},
+//			"A13": {"A13", "A13", 4000},
+//			"A14": {"A14", "A14", 4000},
+//			"A15": {"A15", "A15", 4000},
+//			"A16": {"A16", "A16", 4000},
+//			"A17": {"A17", "A17", 4000},
+//			"A18": {"A18", "A18", 4000},
+//			"A19": {"A19", "A19", 4000},
+//			"A20": {"A20", "A20", 4000},
+//			"A21": {"A21", "A21", 3000},
+//			"A22": {"A22", "A22", 3000},
+//			"A23": {"A23", "A23", 3000},
+//			"A24": {"A24", "A24", 3000},
+//			"A25": {"A25", "A25", 3000},
+//			"A26": {"A26", "A26", 3000},
+//			"A27": {"A27", "A27", 3000},
+//			"A28": {"A28", "A28", 3000},
+//			"A29": {"A29", "A29", 3000},
+//			"A30": {"A30", "A30", 3000},
+//			"A31": {"A31", "A31", 2000},
+//			"A32": {"A32", "A32", 2000},
+//			"A33": {"A33", "A33", 2000},
+//			"A34": {"A34", "A34", 2000},
+//			"A35": {"A35", "A35", 2000},
+//			"A36": {"A36", "A36", 2000},
+//			"A37": {"A37", "A37", 2000},
+//			"A38": {"A38", "A38", 2000},
+//			"A39": {"A39", "A39", 2000},
+//			"A40": {"A40", "A40", 2000},
+//			},
+//		},
+//		},
+
+		// 21++1未开始新的一轮签名队列更新
+		//{
+		//	addrNames: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+		//		"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
+		//		"A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30",
+		//		"A31", "A32", "A33", "A34", "A35", "A36", "A37", "A38", "A39", "A40"},
+		//	period:           uint64(3),
+		//	epoch:            uint64(300),
+		//	maxSignerCount:   uint64(21),
+		//	minVoterBalance:  50,
+		//	lcrs:             1,
+		//	genesisTimestamp: uint64(0),
+		//	selfVoters: []testerSelfVoter{{"A1", 5000}, {"A2", 5000}, {"A3", 5000}, {"A4", 5000}, {"A5", 5000},
+		//		{"A6", 5000}, {"A7", 5000}, {"A8", 5000}, {"A9", 5000}, {"A10", 5000},
+		//		{"A11", 4000}, {"A12", 4000}, {"A13", 4000}, {"A14", 4000}, {"A15", 4000},
+		//		{"A16", 4000}, {"A17", 4000}, {"A18", 4000}, {"A19", 4000}, {"A20", 4000},
+		//		{"A21", 3000}, {"A22", 3000}, {"A23", 3000}, {"A24", 3000}, {"A25", 3000},
+		//		{"A26", 3000}, {"A27", 3000}, {"A28", 3000}, {"A29", 3000}, {"A30", 3000},
+		//		{"A31", 2000}, {"A32", 2000}, {"A33", 2000}, {"A34", 2000}, {"A35", 2000},
+		//		{"A36", 2000}, {"A37", 2000}, {"A38", 2000}, {"A39", 2000}, {"A40", 2000}},
+		//	txHeaders: []testerSingleHeader{
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},//20
+		//	},
+		//	result: testerSnapshot{
+		//		Signers: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+		//			"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
+		//			"A21"},
+		//		Tally: map[string]int{"A1": 5000, "A2": 5000, "A3": 5000, "A4": 5000, "A5": 5000, "A6": 5000, "A7": 5000, "A8": 5000, "A9": 5000, "A10": 5000,
+		//			"A11": 4000, "A12": 4000, "A13": 4000, "A14": 4000, "A15": 4000, "A16": 4000, "A17": 4000, "A18": 4000, "A19": 4000, "A20": 4000,
+		//			"A21": 3000, "A22": 3000, "A23": 3000, "A24": 3000, "A25": 3000, "A26": 3000, "A27": 3000, "A28": 3000, "A29": 3000, "A30": 3000,
+		//			"A31": 2000, "A32": 2000, "A33": 2000, "A34": 2000, "A35": 2000, "A36": 2000, "A37": 2000, "A38": 2000, "A39": 2000, "A40": 2000},
+		//		Voters: map[string]int{"A1": 0, "A2": 0, "A3": 0, "A4": 0, "A5": 0, "A6": 0, "A7": 0, "A8": 0, "A9": 0, "A10": 0,
+		//			"A11": 0, "A12": 0, "A13": 0, "A14": 0, "A15": 0, "A16": 0, "A17": 0, "A18": 0, "A19": 0, "A20": 0,
+		//			"A21": 0, "A22": 0, "A23": 0, "A24": 0, "A25": 0, "A26": 0, "A27": 0, "A28": 0, "A29": 0, "A30": 0,
+		//			"A31": 0, "A32": 0, "A33": 0, "A34": 0, "A35": 0, "A36": 0, "A37": 0, "A38": 0, "A39": 0, "A40": 0},
+		//		Votes: map[string]*testerVote{
+		//			"A1":  {"A1", "A1", 5000},
+		//			"A2":  {"A2", "A2", 5000},
+		//			"A3":  {"A3", "A3", 5000},
+		//			"A4":  {"A4", "A4", 5000},
+		//			"A5":  {"A5", "A5", 5000},
+		//			"A6":  {"A6", "A6", 5000},
+		//			"A7":  {"A7", "A7", 5000},
+		//			"A8":  {"A8", "A8", 5000},
+		//			"A9":  {"A9", "A9", 5000},
+		//			"A10": {"A10", "A10", 5000},
+		//			"A11": {"A11", "A11", 4000},
+		//			"A12": {"A12", "A12", 4000},
+		//			"A13": {"A13", "A13", 4000},
+		//			"A14": {"A14", "A14", 4000},
+		//			"A15": {"A15", "A15", 4000},
+		//			"A16": {"A16", "A16", 4000},
+		//			"A17": {"A17", "A17", 4000},
+		//			"A18": {"A18", "A18", 4000},
+		//			"A19": {"A19", "A19", 4000},
+		//			"A20": {"A20", "A20", 4000},
+		//			"A21": {"A21", "A21", 3000},
+		//			"A22": {"A22", "A22", 3000},
+		//			"A23": {"A23", "A23", 3000},
+		//			"A24": {"A24", "A24", 3000},
+		//			"A25": {"A25", "A25", 3000},
+		//			"A26": {"A26", "A26", 3000},
+		//			"A27": {"A27", "A27", 3000},
+		//			"A28": {"A28", "A28", 3000},
+		//			"A29": {"A29", "A29", 3000},
+		//			"A30": {"A30", "A30", 3000},
+		//			"A31": {"A31", "A31", 2000},
+		//			"A32": {"A32", "A32", 2000},
+		//			"A33": {"A33", "A33", 2000},
+		//			"A34": {"A34", "A34", 2000},
+		//			"A35": {"A35", "A35", 2000},
+		//			"A36": {"A36", "A36", 2000},
+		//			"A37": {"A37", "A37", 2000},
+		//			"A38": {"A38", "A38", 2000},
+		//			"A39": {"A39", "A39", 2000},
+		//			"A40": {"A40", "A40", 2000},
+		//		},
+		//	},
+		//},
+
+		//21++2同上
+		//		{
+		//			addrNames: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+		//					"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
+		//					"A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30",
+		//					"A31", "A32", "A33", "A34", "A35", "A36", "A37", "A38", "A39", "A40"},
+		//			period:           uint64(3),
+		//			epoch:            uint64(300),
+		//			maxSignerCount:   uint64(21),
+		//			minVoterBalance:  50,
+		//			lcrs:             2,
+		//			genesisTimestamp: uint64(0),
+		//			selfVoters: []testerSelfVoter{{"A1", 5000}, {"A2", 5000}, {"A3", 5000}, {"A4", 5000}, {"A5", 5000},
+		//									{"A6", 5000}, {"A7", 5000}, {"A8", 5000}, {"A9", 5000}, {"A10", 5000},
+		//									{"A11", 4000}, {"A12", 4000}, {"A13", 4000}, {"A14", 4000}, {"A15", 4000},
+		//									{"A16", 4000}, {"A17", 4000}, {"A18", 4000}, {"A19", 4000}, {"A20", 4000},
+		//									{"A21", 3000}, {"A22", 3000}, {"A23", 3000}, {"A24", 3000}, {"A25", 3000},
+		//									{"A26", 3000}, {"A27", 3000}, {"A28", 3000}, {"A29", 3000}, {"A30", 3000},
+		//									{"A31", 2000}, {"A32", 2000}, {"A33", 2000}, {"A34", 2000}, {"A35", 2000},
+		//									{"A36", 2000}, {"A37", 2000}, {"A38", 2000}, {"A39", 2000}, {"A40", 2000}},
+		//			txHeaders: []testerSingleHeader{
+		//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}},//21
+		//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//					{[]testerTransaction{}}, {[]testerTransaction{}},//41
+		//				//{[]testerTransaction{}},
+		//		},
+		//			result: testerSnapshot{
+		//		Signers: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+		//			"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
+		//			"A21"},
+		//		Tally: map[string]int{"A1": 5000, "A2": 5000, "A3": 5000, "A4": 5000, "A5": 5000, "A6": 5000, "A7": 5000, "A8": 5000, "A9": 5000, "A10": 5000,
+		//			"A11": 4000, "A12": 4000, "A13": 4000, "A14": 4000, "A15": 4000, "A16": 4000, "A17": 4000, "A18": 4000, "A19": 4000, "A20": 4000,
+		//			"A21": 3000, "A22": 3000, "A23": 3000, "A24": 3000, "A25": 3000, "A26": 3000, "A27": 3000, "A28": 3000, "A29": 3000, "A30": 3000,
+		//			"A31": 2000, "A32": 2000, "A33": 2000, "A34": 2000, "A35": 2000, "A36": 2000, "A37": 2000, "A38": 2000, "A39": 2000, "A40": 2000},
+		//		Voters: map[string]int{"A1": 0, "A2": 0, "A3": 0, "A4": 0, "A5": 0, "A6": 0, "A7": 0, "A8": 0, "A9": 0, "A10": 0,
+		//			"A11": 0, "A12": 0, "A13": 0, "A14": 0, "A15": 0, "A16": 0, "A17": 0, "A18": 0, "A19": 0, "A20": 0,
+		//			"A21": 0, "A22": 0, "A23": 0, "A24": 0, "A25": 0, "A26": 0, "A27": 0, "A28": 0, "A29": 0, "A30": 0,
+		//			"A31": 0, "A32": 0, "A33": 0, "A34": 0, "A35": 0, "A36": 0, "A37": 0, "A38": 0, "A39": 0, "A40": 0},
+		//		Votes: map[string]*testerVote{
+		//			"A1":  {"A1", "A1", 5000},
+		//			"A2":  {"A2", "A2", 5000},
+		//			"A3":  {"A3", "A3", 5000},
+		//			"A4":  {"A4", "A4", 5000},
+		//			"A5":  {"A5", "A5", 5000},
+		//			"A6":  {"A6", "A6", 5000},
+		//			"A7":  {"A7", "A7", 5000},
+		//			"A8":  {"A8", "A8", 5000},
+		//			"A9":  {"A9", "A9", 5000},
+		//			"A10": {"A10", "A10", 5000},
+		//			"A11": {"A11", "A11", 4000},
+		//			"A12": {"A12", "A12", 4000},
+		//			"A13": {"A13", "A13", 4000},
+		//			"A14": {"A14", "A14", 4000},
+		//			"A15": {"A15", "A15", 4000},
+		//			"A16": {"A16", "A16", 4000},
+		//			"A17": {"A17", "A17", 4000},
+		//			"A18": {"A18", "A18", 4000},
+		//			"A19": {"A19", "A19", 4000},
+		//			"A20": {"A20", "A20", 4000},
+		//			"A21": {"A21", "A21", 3000},
+		//			"A22": {"A22", "A22", 3000},
+		//			"A23": {"A23", "A23", 3000},
+		//			"A24": {"A24", "A24", 3000},
+		//			"A25": {"A25", "A25", 3000},
+		//			"A26": {"A26", "A26", 3000},
+		//			"A27": {"A27", "A27", 3000},
+		//			"A28": {"A28", "A28", 3000},
+		//			"A29": {"A29", "A29", 3000},
+		//			"A30": {"A30", "A30", 3000},
+		//			"A31": {"A31", "A31", 2000},
+		//			"A32": {"A32", "A32", 2000},
+		//			"A33": {"A33", "A33", 2000},
+		//			"A34": {"A34", "A34", 2000},
+		//			"A35": {"A35", "A35", 2000},
+		//			"A36": {"A36", "A36", 2000},
+		//			"A37": {"A37", "A37", 2000},
+		//			"A38": {"A38", "A38", 2000},
+		//			"A39": {"A39", "A39", 2000},
+		//			"A40": {"A40", "A40", 2000},
+		//		},
+		//	},
+		//},
+
+		//// 21++3 maxSignerCount < defaultOfficialMaxSignerCount
+		//{
+		//	addrNames: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+		//		"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
+		//		"A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30",
+		//		"A31", "A32", "A33", "A34", "A35", "A36", "A37", "A38", "A39", "A40"},
+		//	period:           uint64(3),
+		//	epoch:            uint64(300),
+		//	maxSignerCount:   uint64(20),//22呢
+		//	minVoterBalance:  50,
+		//	lcrs:             1,
+		//	genesisTimestamp: ui nt64(0),
+		//	selfVoters: []testerSelfVoter{{"A1", 5000}, {"A2", 5000}, {"A3", 5000}, {"A4", 5000}, {"A5", 5000},
+		//		{"A6", 5000}, {"A7", 5000}, {"A8", 5000}, {"A9", 5000}, {"A10", 5000},
+		//		{"A11", 4000}, {"A12", 4000}, {"A13", 4000}, {"A14", 4000}, {"A15", 4000},
+		//		{"A16", 4000}, {"A17", 4000}, {"A18", 4000}, {"A19", 4000}, {"A20", 4000},
+		//		{"A21", 3000}, {"A22", 3000}, {"A23", 3000}, {"A24", 3000}, {"A25", 3000},
+		//		{"A26", 3000}, {"A27", 3000}, {"A28", 3000}, {"A29", 3000}, {"A30", 3000},
+		//		{"A31", 2000}, {"A32", 2000}, {"A33", 2000}, {"A34", 2000}, {"A35", 2000},
+		//		{"A36", 2000}, {"A37", 2000}, {"A38", 2000}, {"A39", 2000}, {"A40", 2000}},
+		//	txHeaders: []testerSingleHeader{
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}},//21
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, //42
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		//50
+		//	},
+		//	result: testerSnapshot{
+		//		Signers: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+		//			"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20"},
+		//		Tally: map[string]int{"A1": 5000, "A2": 5000, "A3": 5000, "A4": 5000, "A5": 5000, "A6": 5000, "A7": 5000, "A8": 5000, "A9": 5000, "A10": 5000,
+		//			"A11": 4000, "A12": 4000, "A13": 4000, "A14": 4000, "A15": 4000, "A16": 4000, "A17": 4000, "A18": 4000, "A19": 4000, "A20": 4000,
+		//			"A21": 3000, "A22": 3000, "A23": 3000, "A24": 3000, "A25": 3000, "A26": 3000, "A27": 3000, "A28": 3000, "A29": 3000, "A30": 3000,
+		//			"A31": 2000, "A32": 2000, "A33": 2000, "A34": 2000, "A35": 2000, "A36": 2000, "A37": 2000, "A38": 2000, "A39": 2000, "A40": 2000},
+		//		Voters: map[string]int{"A1": 0, "A2": 0, "A3": 0, "A4": 0, "A5": 0, "A6": 0, "A7": 0, "A8": 0, "A9": 0, "A10": 0,
+		//			"A11": 0, "A12": 0, "A13": 0, "A14": 0, "A15": 0, "A16": 0, "A17": 0, "A18": 0, "A19": 0, "A20": 0,
+		//			"A21": 0, "A22": 0, "A23": 0, "A24": 0, "A25": 0, "A26": 0, "A27": 0, "A28": 0, "A29": 0, "A30": 0,
+		//			"A31": 0, "A32": 0, "A33": 0, "A34": 0, "A35": 0, "A36": 0, "A37": 0, "A38": 0, "A39": 0, "A40": 0},
+		//		Votes: map[string]*testerVote{
+		//			"A1":  {"A1", "A1", 5000},
+		//			"A2":  {"A2", "A2", 5000},
+		//			"A3":  {"A3", "A3", 5000},
+		//			"A4":  {"A4", "A4", 5000},
+		//			"A5":  {"A5", "A5", 5000},
+		//			"A6":  {"A6", "A6", 5000},
+		//			"A7":  {"A7", "A7", 5000},
+		//			"A8":  {"A8", "A8", 5000},
+		//			"A9":  {"A9", "A9", 5000},
+		//			"A10": {"A10", "A10", 5000},
+		//			"A11": {"A11", "A11", 4000},
+		//			"A12": {"A12", "A12", 4000},
+		//			"A13": {"A13", "A13", 4000},
+		//			"A14": {"A14", "A14", 4000},
+		//			"A15": {"A15", "A15", 4000},
+		//			"A16": {"A16", "A16", 4000},
+		//			"A17": {"A17", "A17", 4000},
+		//			"A18": {"A18", "A18", 4000},
+		//			"A19": {"A19", "A19", 4000},
+		//			"A20": {"A20", "A20", 4000},
+		//			"A21": {"A21", "A21", 3000},
+		//			"A22": {"A22", "A22", 3000},
+		//			"A23": {"A23", "A23", 3000},
+		//			"A24": {"A24", "A24", 3000},
+		//			"A25": {"A25", "A25", 3000},
+		//			"A26": {"A26", "A26", 3000},
+		//			"A27": {"A27", "A27", 3000},
+		//			"A28": {"A28", "A28", 3000},
+		//			"A29": {"A29", "A29", 3000},
+		//			"A30": {"A30", "A30", 3000},
+		//			"A31": {"A31", "A31", 2000},
+		//			"A32": {"A32", "A32", 2000},
+		//			"A33": {"A33", "A33", 2000},
+		//			"A34": {"A34", "A34", 2000},
+		//			"A35": {"A35", "A35", 2000},
+		//			"A36": {"A36", "A36", 2000},
+		//			"A37": {"A37", "A37", 2000},
+		//			"A38": {"A38", "A38", 2000},
+		//			"A39": {"A39", "A39", 2000},
+		//			"A40": {"A40", "A40", 2000},
+		//		},
+		//	},
+		//},
+
+		// 21++4len(tallySlice) <= defaultOfficialThirdLevelCount（30）
+		//{
+		//	addrNames: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+		//		"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
+		//		"A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30"},
+		//	period:           uint64(3),
+		//	epoch:            uint64(300),
+		//	maxSignerCount:   uint64(21),
+		//	minVoterBalance:  50,
+		//	lcrs:             1,
+		//	genesisTimestamp: uint64(0),
+		//	selfVoters: []testerSelfVoter{{"A1", 5000}, {"A2", 5000}, {"A3", 5000}, {"A4", 5000}, {"A5", 5000},
+		//		{"A6", 5000}, {"A7", 5000}, {"A8", 5000}, {"A9", 5000}, {"A10", 5000},
+		//		{"A11", 4000}, {"A12", 4000}, {"A13", 4000}, {"A14", 4000}, {"A15", 4000},
+		//		{"A16", 4000}, {"A17", 4000}, {"A18", 4000}, {"A19", 4000}, {"A20", 4000},
+		//		{"A21", 3100}, {"A22", 3000}, {"A23", 3000}, {"A24", 3000}, {"A25", 3000},
+		//		{"A26", 3000}, {"A27", 3000}, {"A28", 3000}, {"A29", 3000}, {"A30", 3000}},
+		//	txHeaders: []testerSingleHeader{
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}},//21
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, //42
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+		//		//50
+		//	},
+		//	result: testerSnapshot{
+		//		Signers: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+		//			"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20", "A21"},
+		//		Tally: map[string]int{"A1": 5000, "A2": 5000, "A3": 5000, "A4": 5000, "A5": 5000, "A6": 5000, "A7": 5000, "A8": 5000, "A9": 5000, "A10": 5000,
+		//			"A11": 4000, "A12": 4000, "A13": 4000, "A14": 4000, "A15": 4000, "A16": 4000, "A17": 4000, "A18": 4000, "A19": 4000, "A20": 4000,
+		//			"A21": 3100, "A22": 3000, "A23": 3000, "A24": 3000, "A25": 3000, "A26": 3000, "A27": 3000, "A28": 3000, "A29": 3000, "A30": 3000},
+		//		Voters: map[string]int{"A1": 0, "A2": 0, "A3": 0, "A4": 0, "A5": 0, "A6": 0, "A7": 0, "A8": 0, "A9": 0, "A10": 0,
+		//			"A11": 0, "A12": 0, "A13": 0, "A14": 0, "A15": 0, "A16": 0, "A17": 0, "A18": 0, "A19": 0, "A20": 0,
+		//			"A21": 0, "A22": 0, "A23": 0, "A24": 0, "A25": 0, "A26": 0, "A27": 0, "A28": 0, "A29": 0, "A30": 0},
+		//		Votes: map[string]*testerVote{
+		//			"A1":  {"A1", "A1", 5000},
+		//			"A2":  {"A2", "A2", 5000},
+		//			"A3":  {"A3", "A3", 5000},
+		//			"A4":  {"A4", "A4", 5000},
+		//			"A5":  {"A5", "A5", 5000},
+		//			"A6":  {"A6", "A6", 5000},
+		//			"A7":  {"A7", "A7", 5000},
+		//			"A8":  {"A8", "A8", 5000},
+		//			"A9":  {"A9", "A9", 5000},
+		//			"A10": {"A10", "A10", 5000},
+		//			"A11": {"A11", "A11", 4000},
+		//			"A12": {"A12", "A12", 4000},
+		//			"A13": {"A13", "A13", 4000},
+		//			"A14": {"A14", "A14", 4000},
+		//			"A15": {"A15", "A15", 4000},
+		//			"A16": {"A16", "A16", 4000},
+		//			"A17": {"A17", "A17", 4000},
+		//			"A18": {"A18", "A18", 4000},
+		//			"A19": {"A19", "A19", 4000},
+		//			"A20": {"A20", "A20", 4000},
+		//			"A21": {"A21", "A21", 3100},
+		//			"A22": {"A22", "A22", 3000},
+		//			"A23": {"A23", "A23", 3000},
+		//			"A24": {"A24", "A24", 3000},
+		//			"A25": {"A25", "A25", 3000},
+		//			"A26": {"A26", "A26", 3000},
+		//			"A27": {"A27", "A27", 3000},
+		//			"A28": {"A28", "A28", 3000},
+		//			"A29": {"A29", "A29", 3000},
+		//			"A30": {"A30", "A30", 3000},
+		//		},
+		//	},
+		},
 	}
 	//chaorstest**/
 
@@ -1321,6 +1761,11 @@ func TestVoting(t *testing.T) {
 						Stake: big.NewInt(int64(trans.balance)),
 					})
 				}
+
+				////构造交易
+				//tx := types.Transaction{
+				//	dd
+				//}
 			}
 			currentHeaderExtra := HeaderExtra{}
 			signer := common.Address{}
@@ -1406,7 +1851,410 @@ func TestVoting(t *testing.T) {
 			fmt.Printf("ccc name:%s for addr:%s\n", name, accounts.address(name).Hex())
 		}
 
-		// check signers
+		// check signers ???
+		if len(tt.result.Signers) > 0 {
+
+			signers := map[common.Address]int{}
+			// snap里的signer数量
+			for _, signer := range snap.Signers {
+				signers[*signer] = 1
+				fmt.Printf("ccc signer in snap:%s\n", signer.Hex())
+
+			}
+
+			//测试结果的signers队列与snap的一一对应
+			for _, signer := range tt.result.Signers {
+				signers[accounts.address(signer)] += 2
+				fmt.Printf("ccc result signer:%s\n", accounts.address(signer).Hex())
+			}
+
+
+			for signer, cnt := range signers {
+
+				fmt.Printf("ccc cnt:%d for signer::%s\n", cnt, signer.Hex())
+			}
+			// 检测测试结果的signers队列与snap的是否一致
+			for address, cnt := range signers {
+				if cnt != 3 {
+					t.Errorf("test %d: signer %v address: %v not in result signers %d", i, accounts.name(address), address.Hex(), cnt)
+					continue
+				}
+			}
+		} else {
+			// check signers official 21 node
+			firstLevel := map[common.Address]int{}
+			secondLevel := map[common.Address]int{}
+			thirdLevel := map[common.Address]int{}
+			otherLevel := map[common.Address]int{}
+
+			for signer, tally := range tt.result.Tally {
+				switch tally {
+				case 5000:
+					firstLevel[accounts.address(signer)] = 0
+				case 4000:
+					secondLevel[accounts.address(signer)] = 0
+				case 3000:
+					thirdLevel[accounts.address(signer)] = 0
+				case 2000:
+					otherLevel[accounts.address(signer)] = 0
+
+				}
+
+			}
+			var l1, l2, l3, l4 int
+			for _, signer := range snap.Signers {
+				if _, ok := firstLevel[*signer]; ok {
+					l1 += 1
+					continue
+				}
+				if _, ok := secondLevel[*signer]; ok {
+					l2 += 1
+					continue
+				}
+				if _, ok := thirdLevel[*signer]; ok {
+					l3 += 1
+					continue
+				}
+				if _, ok := otherLevel[*signer]; ok {
+					l4 += 1
+				}
+			}
+			if l1 != 10 || l2 != 6 || l3 != 4 || l4 != 1 {
+				t.Errorf("test %d: signer not select right count from different level l1 = %d, l2 = %d, l3 = %d, l4 = %d", i, l1, l2, l3, l4)
+			}
+
+		}
+
+		// check tally
+		if len(tt.result.Tally) != len(snap.Tally) {
+			t.Errorf("test %d: tally length result %d, snap %d dismatch", i, len(tt.result.Tally), len(snap.Tally))
+		}
+		for name, tally := range tt.result.Tally {
+			if big.NewInt(int64(tally)).Cmp(snap.Tally[accounts.address(name)]) != 0 {
+				t.Errorf("test %d: tally %v address: %v, tally:%v ,result: %v", i, name, accounts.address(name), snap.Tally[accounts.address(name)], big.NewInt(int64(tally)))
+				continue
+			}
+		}
+		// check voters
+		if len(tt.result.Voters) != len(snap.Voters) {
+			t.Errorf("test %d: voter length result %d, snap %d dismatch", i, len(tt.result.Voters), len(snap.Voters))
+		}
+		for name, number := range tt.result.Voters {
+			if snap.Voters[accounts.address(name)].Cmp(big.NewInt(int64(number))) != 0 {
+				t.Errorf("test %d: voter %v address: %v, number:%v ,result: %v", i, name, accounts.address(name).Hex(), snap.Voters[accounts.address(name)], big.NewInt(int64(number)))
+				continue
+			}
+		}
+		// check votes
+
+		if len(tt.result.Votes) != len(snap.Votes) {
+			t.Errorf("test %d: votes length result %d, snap %d dismatch", i, len(tt.result.Votes), len(snap.Votes))
+		}
+		for name, vote := range tt.result.Votes {
+			snapVote, ok := snap.Votes[accounts.address(name)]
+			if !ok {
+				t.Errorf("test %d: votes %v address: %v can not found", i, name, accounts.address(name))
+
+			}
+			if snapVote.Voter != accounts.address(vote.voter) {
+				t.Errorf("test %d: votes voter dismatch %v address: %v  , show in snap is %v address: %v", i, vote.voter, accounts.address(vote.voter), accounts.name(snapVote.Voter), snapVote.Voter)
+			}
+			if snapVote.Candidate != accounts.address(vote.candidate) {
+				t.Errorf("test %d: votes candidate dismatch %v address: %v , show in snap is %v address: %v ", i, vote.candidate, accounts.address(vote.candidate), accounts.name(snapVote.Candidate), snapVote.Candidate)
+			}
+			if snapVote.Stake.Cmp(big.NewInt(int64(vote.stake))) != 0 {
+				t.Errorf("test %d: votes stake dismatch %v ,show in snap is %v ", i, vote.stake, snapVote.Stake)
+			}
+		}
+	}
+}
+
+func TestBalance(t *testing.T)  {
+
+	s := big.NewInt(5e+18)
+	r := new(big.Int).Set(s)
+	m := r.Mul(r, big.NewInt(618))
+	m = m.Div(m, big.NewInt(1000))
+	v := s.Sub(s, m)
+
+	fmt.Printf("ccc Block :%d-----%d", m.Uint64(), v.Uint64())
+
+	tests := []struct {
+		addrNames        []string             // accounts used in this case
+		candidateNeedPD  bool                 // candidate from POA
+		period           uint64               // default 3
+		epoch            uint64               // default 30000
+		maxSignerCount   uint64               // default 5 for test
+		minVoterBalance  int                  // default 50
+		genesisTimestamp uint64               // default time.now() - period + 1
+		lcrs             uint64               // loop count to recreate signers from top tally
+		selfVoters       []testerSelfVoter    //
+		txHeaders        []testerSingleHeader //
+		result           testerSnapshot       // the result of current snapshot
+		vlCnt            uint64
+		balances 		 map[string]*big.Int
+	}{
+		{
+			/* 	Case 0:
+			*	Just two self vote address A B in genesis
+			*  	No votes or transactions through blocks
+			 */
+			addrNames:        []string{"A", "B"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(3),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},//a
+				//{[]testerTransaction{{from: "A", to: "B", balance: 100, isVote: true}}},//a
+				{[]testerTransaction{}},//b
+				{[]testerTransaction{}},//a
+				{[]testerTransaction{}}, //5 b
+			},
+			result: testerSnapshot{
+				Signers: []string{"B", "A"},
+				Tally:   map[string]int{"B": 200, "A":100},
+				Voters:  map[string]int{"A": 0, "B": 0},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+				},
+			},
+			balances: map[string]*big.Int {
+				"A":CalReward(m, big.NewInt(2), v, big.NewInt(2), big.NewInt(100), big.NewInt(300)),
+				"B":CalReward(m, big.NewInt(2), v, big.NewInt(2), big.NewInt(200), big.NewInt(300)),
+			},
+		},
+	}
+
+	// Run through the scenarios and test them
+	for i, tt := range tests {
+		candidateNeedPD = tt.candidateNeedPD
+		if tt.vlCnt == 0 {
+			tt.vlCnt = 1
+		}
+		// Create the account pool and generate the initial set of all address in addrNames
+		accounts := newTesterAccountPool()
+		addrNames := make([]common.Address, len(tt.addrNames))
+		for j, signer := range tt.addrNames {
+			addrNames[j] = accounts.address(signer)
+		}
+		for j := 0; j < len(addrNames); j++ {
+			for k := j + 1; k < len(addrNames); k++ {
+				if bytes.Compare(addrNames[j][:], addrNames[k][:]) > 0 {
+					addrNames[j], addrNames[k] = addrNames[k], addrNames[j]
+				}
+			}
+		}
+
+		var snap *Snapshot
+		//var lastSnap *Snapshot
+		// Prepare data for the genesis block
+		var genesisVotes []*Vote             // for create the new snapshot of genesis block
+		var selfVoteSigners []common.Address // for header extra
+		alreadyVote := make(map[common.Address]struct{})
+		for _, voter := range tt.selfVoters {
+			if _, ok := alreadyVote[accounts.address(voter.voter)]; !ok {
+				genesisVotes = append(genesisVotes, &Vote{
+					Voter:     accounts.address(voter.voter),
+					Candidate: accounts.address(voter.voter),
+					Stake:     big.NewInt(int64(voter.balance)),
+				})
+				selfVoteSigners = append(selfVoteSigners, accounts.address(voter.voter))
+				alreadyVote[accounts.address(voter.voter)] = struct{}{}
+			}
+		}
+
+		// extend length of extra, so address of CoinBase can keep signature .
+		genesis := &core.Genesis{
+			ExtraData: make([]byte, extraVanity+extraSeal),
+		}
+
+		// Create a pristine blockchain with the genesis injected
+		db := ethdb.NewMemDatabase()
+		genesis.Commit(db)
+		//stateDB
+		stateDB, _ := state.New(common.Hash{}, state.NewDatabase(db))
+
+		// Create new alien
+		alien := New(&params.AlienConfig{
+			Period:          tt.period,
+			Epoch:           tt.epoch,
+			MinVoterBalance: big.NewInt(int64(tt.minVoterBalance)),
+			MaxSignerCount:  tt.maxSignerCount,
+			SelfVoteSigners: selfVoteSigners,
+		}, db)
+
+		// chainCfg
+		chainCfg := &params.ChainConfig{
+			nil,
+			nil,
+			nil,
+			common.Hash{},
+			nil,
+			nil,
+			nil,
+			nil,
+			&params.EthashConfig{},
+			&params.CliqueConfig{},
+			&params.AlienConfig{
+				Period:          tt.period,
+				Epoch:           tt.epoch,
+				MinVoterBalance: big.NewInt(int64(tt.minVoterBalance)),
+				MaxSignerCount:  tt.maxSignerCount,
+				SelfVoteSigners: selfVoteSigners,
+			},
+		}
+
+
+		// Assemble a chain of headers from the cast votes
+		headers := make([]*types.Header, len(tt.txHeaders))
+		for j, header := range tt.txHeaders {
+
+			var currentBlockVotes []Vote
+			var currentBlockProposals []Proposal
+			var currentBlockDeclares []Declare
+			var modifyPredecessorVotes []Vote
+			for _, trans := range header.txs {
+				if trans.isVote {
+					if trans.balance >= tt.minVoterBalance && (!candidateNeedPD || snap.isCandidate(accounts.address(trans.to))) {
+						// vote event
+						currentBlockVotes = append(currentBlockVotes, Vote{
+							Voter:     accounts.address(trans.from),
+							Candidate: accounts.address(trans.to),
+							Stake:     big.NewInt(int64(trans.balance)),
+						})
+					}
+				} else if trans.isProposal {
+					if snap.isCandidate(accounts.address(trans.from)) {
+						currentBlockProposals = append(currentBlockProposals, Proposal{
+							Hash:                   common.HexToHash(trans.txHash),
+							ValidationLoopCnt:      tt.vlCnt,
+							ImplementNumber:        big.NewInt(1),
+							ProposalType:           trans.proposalType,
+							Proposer:               accounts.address(trans.from),
+							Candidate:              accounts.address(trans.candidate),
+							MinerRewardPerThousand: minerRewardPerThousand,
+							Declares:               []*Declare{},
+							ReceivedNumber:         big.NewInt(int64(j)),
+						})
+					}
+				} else if trans.isDeclare {
+					if snap.isCandidate(accounts.address(trans.from)) {
+
+						currentBlockDeclares = append(currentBlockDeclares, Declare{
+							ProposalHash: common.HexToHash(trans.txHash),
+							Declarer:     accounts.address(trans.from),
+							Decision:     trans.decision,
+						})
+
+					}
+				} else {
+					// modify balance
+					// modifyPredecessorVotes
+					// only consider the voter
+					modifyPredecessorVotes = append(modifyPredecessorVotes, Vote{
+						Voter: accounts.address(trans.from),
+						Stake: big.NewInt(int64(trans.balance)),
+					})
+				}
+
+				////构造交易
+				//tx := types.Transaction{
+				//	dd
+				//}
+			}
+			currentHeaderExtra := HeaderExtra{}
+			signer := common.Address{}
+
+			// (j==0) means (header.Number==1)
+			if j == 0 {
+				for k := 0; k < int(tt.maxSignerCount); k++ {
+					currentHeaderExtra.SignerQueue = append(currentHeaderExtra.SignerQueue, selfVoteSigners[k%len(selfVoteSigners)])
+				}
+				currentHeaderExtra.LoopStartTime = tt.genesisTimestamp // here should be parent genesisTimestamp
+				signer = selfVoteSigners[0]
+
+			} else {
+				// decode parent header.extra
+				rlp.DecodeBytes(headers[j-1].Extra[extraVanity:len(headers[j-1].Extra)-extraSeal], &currentHeaderExtra)
+				signer = currentHeaderExtra.SignerQueue[uint64(j)%tt.maxSignerCount]
+				// means header.Number % tt.maxSignerCount == 0
+				if (j+1)%int(tt.maxSignerCount) == 0 {
+					snap, err := alien.snapshot(&testerChainReader{db: db}, headers[j-1].Number.Uint64(), headers[j-1].Hash(), headers, nil, uint64(tt.lcrs))
+					if err != nil {
+						t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
+						continue
+					}
+					currentHeaderExtra.SignerQueue = []common.Address{}
+					newSignerQueue, err := snap.createSignerQueue()
+					if err != nil {
+						t.Errorf("test %d: failed to create signer queue: %v", i, err)
+					}
+
+					currentHeaderExtra.SignerQueue = newSignerQueue
+
+					currentHeaderExtra.LoopStartTime = currentHeaderExtra.LoopStartTime + tt.period*tt.maxSignerCount
+				} else {
+
+				}
+			}
+
+			currentHeaderExtra.CurrentBlockVotes = currentBlockVotes
+			currentHeaderExtra.ModifyPredecessorVotes = modifyPredecessorVotes
+			currentHeaderExtra.CurrentBlockProposals = currentBlockProposals
+			currentHeaderExtra.CurrentBlockDeclares = currentBlockDeclares
+			currentHeaderExtraEnc, err := rlp.EncodeToBytes(currentHeaderExtra)
+			if err != nil {
+				t.Errorf("test %d: failed to rlp encode to bytes: %v", i, err)
+				continue
+			}
+			// Create the genesis block with the initial set of signers
+			ExtraData := make([]byte, extraVanity+len(currentHeaderExtraEnc)+extraSeal)
+			copy(ExtraData[extraVanity:], currentHeaderExtraEnc)
+
+			headers[j] = &types.Header{
+				Number:   big.NewInt(int64(j) + 1),
+				Time:     big.NewInt((int64(j)+1)*int64(defaultBlockPeriod) - 1),
+				Coinbase: signer,
+				Extra:    ExtraData,
+			}
+			if j > 0 {
+				headers[j].ParentHash = headers[j-1].Hash()
+			}
+			accounts.sign(headers[j], accounts.name(signer))
+
+			// Pass all the headers through alien and ensure tallying succeeds
+			snap, err = alien.snapshot(&testerChainReader{db: db}, headers[j].Number.Uint64(), headers[j].Hash(), headers[:j+1], genesisVotes, uint64(tt.lcrs))
+			genesisVotes = []*Vote{}
+			if err != nil {
+				t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
+				continue
+			}
+
+			//reward
+			accounts.accumulateRewards(chainCfg, headers[j], snap, stateDB)
+		}
+
+		// verify the result in test case
+		head := headers[len(headers)-1]
+		snap, err := alien.snapshot(&testerChainReader{db: db}, head.Number.Uint64(), head.Hash(), headers, nil, uint64(tt.lcrs))
+		//
+		if err != nil {
+			t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
+			continue
+		}
+
+		//cct
+		for _, name := range tt.addrNames {
+
+			fmt.Printf("ccc name:%s for addr:%s\n", name, accounts.address(name).Hex())
+		}
+
+		// check signers ???
 		if len(tt.result.Signers) > 0 {
 
 			signers := map[common.Address]int{}
@@ -1522,5 +2370,17 @@ func TestVoting(t *testing.T) {
 			}
 		}
 
+
+		//check balance  by chaors 20181211
+		//stake := state.GetBalance(voter)
+		balance := stateDB.GetBalance(accounts.address("A"))
+		fmt.Println("check balance", balance)
+
+		for _, name := range tt.addrNames {
+
+			if tt.balances[name] != (stateDB.GetBalance(accounts.address(name))) {
+				t.Errorf("%s balance:%d in BLC dismatch %d in test result ", name, stateDB.GetBalance(accounts.address(name)).Uint64(), tt.balances[name])
+			}
+		}
 	}
 }
