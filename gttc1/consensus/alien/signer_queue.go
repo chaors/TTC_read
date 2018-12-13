@@ -181,11 +181,12 @@ func (s *Snapshot) createSignerQueue() ([]common.Address, error) {
 		//fmt.Printf("common:\n")
 		//fmt.Println(tally.hash.Hex())
 	}
-	/**
-	fmt.Printf("ccc historyHas:\n")
+	/**/
+	fmt.Printf("ccc historyHash:\n")
 	for _, hash := range s.HistoryHash {
 		fmt.Println(hash.Hex())
-	}*/
+	}
+	//*/
 
 	//chaorstest
 	sort.Sort(SignerSlice(signerSlice))

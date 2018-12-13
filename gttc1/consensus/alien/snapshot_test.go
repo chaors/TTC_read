@@ -2112,6 +2112,7 @@ func TestBalance(t *testing.T)  {
 		result           testerSnapshot       // the result of current snapshot
 		vlCnt            uint64
 		testBalances 		 map[string]float64
+		historyHashes []string
 	}{
 		////balance0 A,B两个自选签名者(A,B)，目前只出了一个块 所以还没轮到b出块 A自己选自己所以奖励都是自己的
 		//{
@@ -2135,9 +2136,6 @@ func TestBalance(t *testing.T)  {
 		//			"B": {"B", "B", 200},
 		//		},
 		//	},
-		//	// CalReward(m, mCount, v, vCount, bal, allStake), m*mCount + v*vCount*bal/allStake
-		//	// m:挖矿奖励  mCount:自己挖的区块数  v:投票奖励  vCount:自己投的地址挖的区块数
-		//	// bal:自己的投票数目(余额)  allStake:对应候选人总票数
 		//	testBalances: map[string]float64 {
 		//		"A":m*1 + v*1,
 		//		"B":0.0,
@@ -2348,40 +2346,40 @@ func TestBalance(t *testing.T)  {
 		//	},
 		//},
 
-		////balance7 A,B两个自选签名者(A,B)，目前出了2个块 a,b轮流出块
-		//// 在区块2 A把票转投给了B,B把票投给了A 但是在此前区块1A还是出块者A的投票者  会有投票奖励
-		//// 后面他们各自得到自己的挖矿奖励和对方挖矿的投票奖励
-		//{
-		//	addrNames:        []string{"A", "B", "C"},
-		//	period:           uint64(3),
-		//	epoch:            uint64(31),
-		//	maxSignerCount:   uint64(5),
-		//	minVoterBalance:  50,
-		//	lcrs:             1,
-		//	genesisTimestamp: uint64(0),
-		//	selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-		//	txHeaders: []testerSingleHeader{
-		//		{[]testerTransaction{}},//a
-		//		{[]testerTransaction{{from: "A", to: "B", balance: 100, isVote: true}, {from: "B", to: "A", balance: 200, isVote: true}}},//b
-		//		{[]testerTransaction{}},//a 3
-		//		{[]testerTransaction{}},//b
-		//		{[]testerTransaction{}},//a//5
-		//	},
-		//	result: testerSnapshot{
-		//		Signers: []string{"B", "A"},
-		//		Tally:   map[string]int{"B": 100, "A":200},
-		//		Voters:  map[string]int{"A": 2, "B": 2},
-		//		Votes: map[string]*testerVote{
-		//			"A": {"A", "B", 100},
-		//			"B": {"B", "A", 200},
-		//		},
-		//	},
-		//	testBalances: map[string]float64 {
-		//		"A":m*3 + v*100.0/100.0*1 + v*100/100*2,
-		//		"B":m*2 + v*200.0/200.0*2,
-		//		"C":0.0,
-		//	},
-		//},
+		//balance7 A,B两个自选签名者(A,B)，目前出了2个块 a,b轮流出块
+		// 在区块2 A把票转投给了B,B把票投给了A 但是在此前区块1A还是出块者A的投票者  会有投票奖励
+		// 后面他们各自得到自己的挖矿奖励和对方挖矿的投票奖励
+		{
+			addrNames:        []string{"A", "B", "C"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},//a
+				{[]testerTransaction{{from: "A", to: "B", balance: 100, isVote: true}, {from: "B", to: "A", balance: 200, isVote: true}}},//b
+				{[]testerTransaction{}},//a 3
+				{[]testerTransaction{}},//b
+				{[]testerTransaction{}},//a//5
+			},
+			result: testerSnapshot{
+				Signers: []string{"B", "A"},
+				Tally:   map[string]int{"B": 100, "A":200},
+				Voters:  map[string]int{"A": 2, "B": 2},
+				Votes: map[string]*testerVote{
+					"A": {"A", "B", 100},
+					"B": {"B", "A", 200},
+				},
+			},
+			testBalances: map[string]float64 {
+				"A":m*3 + v*100.0/100.0*1 + v*100/100*2,
+				"B":m*2 + v*200.0/200.0*2,
+				"C":0.0,
+			},
+		},
 
 		////balance8 A,B两个自选签名者(A,B)，目前出了2个块 a,b轮流出块
 		//// 在区块2 A把票转投给了B,  区块4B把票投给了A 这个时候要注意在投票前各自的投票奖励与自己相关和投票比例变化
@@ -2470,22 +2468,181 @@ func TestBalance(t *testing.T)  {
 				{[]testerTransaction{}},//a 3
 				{[]testerTransaction{{from: "A", to: "A", balance: 100, isVote: true}}},//b
 				{[]testerTransaction{}},//a 5
+				{[]testerTransaction{}},//a 6
+
 			},
 			result: testerSnapshot{
-				Signers: []string{"B"},
+				Signers: []string{"B", "A"},
 				Tally:   map[string]int{"B":200, "A":100},
 				Voters:  map[string]int{"A":4, "B":0},
 				Votes: map[string]*testerVote{
 					"A": {"A", "A", 100},
-					"B": {"B", "A", 200},
+					"B": {"B", "B", 200},
 				},
 			},
 			testBalances: map[string]float64 {
-				"A":m*3 + v*100.0/100.0*2 + v*100.0/300.0*1,
-				"B":m*2 + v*200.0/200.0*1,
+				"A":m*4 + v*100.0/100.0*3 + v*100.0/300.0*1,
+				"B":m*2 + v*200.0/300.0*1 + v*200.0/200.0*1,
 				"C":0,
 			},
+			historyHashes:[]string{"a", "b", "c", "d", "e"},
 		},
+
+		/**
+		//balance10 A,B两个自选签名者(A,B)
+		{
+			//addrNames:        []string{"A", "B", "C"},
+			addrNames:        []string{"A", "B", "C", "D", "E", "F", "H"},
+			period:           uint64(3),
+			epoch:            uint64(8),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 260}, {"B", 205}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},//{from: "B", to: "B", balance: 205, isVote: true}a
+				{[]testerTransaction{}},//b
+				{[]testerTransaction{}},//a
+				{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}, {from: "D", to: "C", balance: 220, isVote: true}, {from: "E", to: "E", balance: 280, isVote: true}, {from: "F", to: "H", balance: 320, isVote: true}}},//b
+				{[]testerTransaction{}},//5 HEACB  a
+				{[]testerTransaction{}}, // h
+				//{[]testerTransaction{}}, //e
+				//{[]testerTransaction{}},//8 a
+
+			},
+			result: testerSnapshot{
+				Signers: []string{"H", "E", "A", "C", "B"},
+				Tally:   map[string]int{"D": 200, "C":220, "E":280, "H":320, "A":260, "B":205},
+				Voters:  map[string]int{"C": 4, "D":4, "E":4, "F":4, "A":0, "B":0},
+				Votes: map[string]*testerVote{
+					"C": {"C", "D", 200},
+					"D": {"D", "C", 220},
+					"E": {"E", "E", 280},
+					"B": {"B", "B", 205},
+					"F": {"F", "H", 320},
+					"A": {"A", "A", 260},
+				},
+			},
+			testBalances: map[string]float64{
+				"A":m*3 + v*3,
+				"B":m*2 + v*2,
+				"C":0.0,
+				"D":0.0,
+				"E":0.0,
+				"F":v*1,
+				"H":m*1,
+			},
+		},
+		*/
+
+
+		// +++6A到期但不是因为到期而更新出signers(不在top5)
+		//{
+		//	//addrNames:        []string{"A", "B", "C"},
+		//	addrNames:        []string{"A", "B", "C", "D", "E", "F", "H", "I", "J"},
+		//	period:           uint64(3),
+		//	epoch:            uint64(8),
+		//	maxSignerCount:   uint64(5),
+		//	minVoterBalance:  50,
+		//	lcrs:             1,
+		//	genesisTimestamp: uint64(0),
+		//	selfVoters:       []testerSelfVoter{{"A", 180}},
+		//	txHeaders: []testerSingleHeader{
+		//		{[]testerTransaction{}},//{from: "B", to: "B", balance: 205, isVote: true}
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}, {from: "D", to: "C", balance: 260, isVote: true}, {from: "E", to: "E", balance: 280, isVote: true}, {from: "F", to: "H", balance: 320, isVote: true}, {from: "H", to: "I", balance: 210, isVote: true}}},
+		//		{[]testerTransaction{}},//5
+		//		{[]testerTransaction{}}, //
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}},//9
+		//		{[]testerTransaction{}},  //有没有这个结果都一样
+		//	},
+		//	result: testerSnapshot{
+		//		Signers: []string{"D", "C", "E", "H", "I"},
+		//		Tally:   map[string]int{"D": 200, "C":260, "E":280, "H":320, "I":210},
+		//		Voters:  map[string]int{"C": 4, "D":4, "E":4, "F":4, "H":4},
+		//		Votes: map[string]*testerVote{
+		//			"C": {"C", "D", 200},
+		//			"D": {"D", "C", 260},
+		//			"E": {"E", "E", 280},
+		//			//"B": {"B", "B", 200},
+		//			"F": {"F", "H", 320},
+		//			"H": {"H", "I", 210},
+		//		},
+		//	},
+
+		// +++5有投票过期但是有效投票数未达到maxSignerCount
+		//{
+		//	//addrNames:        []string{"A", "B", "C"},
+		//	addrNames:        []string{"A", "B", "C", "D", "E"},
+		//	period:           uint64(3),
+		//	epoch:            uint64(8),
+		//	maxSignerCount:   uint64(5),
+		//	minVoterBalance:  50,
+		//	lcrs:             1,
+		//	genesisTimestamp: uint64(0),
+		//	selfVoters:       []testerSelfVoter{{"A", 200}, {"B", 100}},
+		//	txHeaders: []testerSingleHeader{
+		//		{[]testerTransaction{}}, //{from: "B", to: "B", balance: 205, isVote: true}
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{{from: "C", to: "D", balance: 210, isVote: true}, {from: "D", to: "C", balance: 260, isVote: true}, {from: "E", to: "E", balance: 280, isVote: true}}},
+		//		{[]testerTransaction{}}, //5
+		//		{[]testerTransaction{}}, //
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}}, //9
+		//		{[]testerTransaction{}}, //有没有这个结果都一样
+		//	},
+		//	result: testerSnapshot{
+		//		Signers: []string{"D", "C", "E", "A", "B"},
+		//		Tally:   map[string]int{"D": 210, "C": 260, "E": 280, "A": 200, "B": 100},
+		//		Voters:  map[string]int{"C": 4, "D": 4, "E": 4, "A": 0, "B": 0},
+		//		Votes: map[string]*testerVote{
+		//			"C": {"C", "D", 210},
+		//			"D": {"D", "C", 260},
+		//			"E": {"E", "E", 280},
+		//			"B": {"B", "B", 100},
+		//			"A": {"A", "A", 200},
+		//		},
+		//	},
+		//},
+
+		// +++4有投票过期但是总候选人数未达到maxSignerCount
+		//{
+		//	//addrNames:        []string{"A", "B", "C"},
+		//	addrNames:        []string{"A", "B", "C"},
+		//	period:           uint64(3),
+		//	epoch:            uint64(7),
+		//	maxSignerCount:   uint64(5),
+		//	minVoterBalance:  50,
+		//	lcrs:             1,
+		//	genesisTimestamp: uint64(0),
+		//	selfVoters:       []testerSelfVoter{{"A", 200}},
+		//	txHeaders: []testerSingleHeader{
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{{from: "B", to: "C", balance: 220, isVote: true}, {from: "C", to: "B", balance: 160, isVote: true}}},
+		//		{[]testerTransaction{}},//5
+		//		{[]testerTransaction{}}, //
+		//		{[]testerTransaction{}},
+		//		{[]testerTransaction{}},//8
+		//	},
+		//	result: testerSnapshot{
+		//		Signers: []string{"A", "B", "C"},
+		//		Tally:   map[string]int{"A":200, "B": 160, "C":220},
+		//		Voters:  map[string]int{"A":0, "B": 4, "C":4},
+		//		Votes: map[string]*testerVote{
+		//			"B": {"B", "C", 220},
+		//			"C": {"C", "B", 160},
+		//			"A": {"A", "A", 200},
+		//		},
+		//	},
+		//},
 	}
 
 	fmt.Printf("test balance:%v---%v---%v----%v\n", m*3 + v*(100/100*1) + v*(100/300.0*2), m*3, v*(100/100*1), v*(100/300*2))
@@ -2641,6 +2798,7 @@ func TestBalance(t *testing.T)  {
 			} else {
 				// decode parent header.extra
 				rlp.DecodeBytes(headers[j-1].Extra[extraVanity:len(headers[j-1].Extra)-extraSeal], &currentHeaderExtra)
+				//fmt.Printf("ccc signer get:j---%d======maxSig----%d\n SignerQueue:%v", j, tt.maxSignerCount, currentHeaderExtra.SignerQueue)
 				signer = currentHeaderExtra.SignerQueue[uint64(j)%tt.maxSignerCount]
 				// means header.Number % tt.maxSignerCount == 0
 				if (j+1)%int(tt.maxSignerCount) == 0 {
@@ -2694,6 +2852,17 @@ func TestBalance(t *testing.T)  {
 				t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
 				continue
 			}
+
+			// 构造historyHash
+			for _, string := range tt.historyHashes {
+
+				var hash common.Hash
+				hash.SetString(string)
+				snap.HistoryHash = append(snap.HistoryHash[1:len(snap.HistoryHash)], hash)
+				//snap.HistoryHash = append(snap.HistoryHash, hash)
+				snap.Hash = hash
+			}
+
 
 			//reward
 			accounts.accumulateRewards(chainCfg, headers[j], snap, stateDB)
