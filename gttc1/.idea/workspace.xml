@@ -8,6 +8,12 @@
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="CoverageDataManager">
+    <SUITE FILE_PATH="coverage/gttc$TestBalance_in_github_com_TTCECO_gttc_consensus_alien.out" NAME="TestBalance in github.com/TTCECO/gttc/consensus/alien Coverage Results" MODIFIED="1544754987222" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="GoCoverage" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" />
+  </component>
+  <component name="CoverageViewManager">
+    <option name="myElementSize" value="347" />
+  </component>
   <component name="FUSProjectUsageTrigger">
     <session id="1820681129">
       <usages-collector id="statistics.lifecycle.project">
@@ -41,36 +47,37 @@
     <session id="-654069908">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="11" />
-          <entry key="project.open.time.1" value="3" />
+          <entry key="project.closed" value="12" />
+          <entry key="project.open.time.1" value="4" />
           <entry key="project.open.time.4" value="7" />
           <entry key="project.open.time.6" value="1" />
-          <entry key="project.opened" value="11" />
+          <entry key="project.opened" value="12" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
-          <entry key="go" value="55" />
+          <entry key="go" value="70" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
-          <entry key="Go" value="55" />
+          <entry key="Go" value="70" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="go" value="8125" />
+          <entry key="go" value="9859" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Go" value="8125" />
+          <entry key="Go" value="9859" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.go.postfix.template.usages.trigger">
         <counts>
           <entry key=".append" value="1" />
+          <entry key=".len" value="1" />
         </counts>
       </usages-collector>
     </session>
@@ -80,8 +87,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/consensus/alien/alien.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="192">
-              <caret line="111" column="34" selection-start-line="111" selection-start-column="4" selection-end-line="111" selection-end-column="34" />
+            <state relative-caret-position="354">
+              <caret line="103" column="18" selection-start-line="103" selection-start-column="18" selection-end-line="103" selection-end-column="18" />
             </state>
           </provider>
         </entry>
@@ -89,8 +96,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/consensus/alien/snapshot_test.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2146">
-              <caret line="2472" column="14" lean-forward="true" selection-start-line="2472" selection-start-column="14" selection-end-line="2472" selection-end-column="14" />
+            <state relative-caret-position="236">
+              <caret line="2567" column="27" lean-forward="true" selection-start-line="2567" selection-start-column="27" selection-end-line="2567" selection-end-column="27" />
               <folding>
                 <element signature="n#!!block;n#TestVoting#0" />
               </folding>
@@ -99,28 +106,24 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file:///usr/local/go/src/runtime/panic.go">
+        <entry file="file:///usr/local/go/src/math/big/int.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="504">
-              <caret line="512" selection-start-line="512" selection-end-line="512" />
+            <state relative-caret-position="200">
+              <caret line="150" column="14" selection-start-line="150" selection-start-column="14" selection-end-line="150" selection-end-column="14" />
             </state>
           </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/consensus/alien/cross_chain.go">
+          <provider selected="true" editor-type-id="text-editor" />
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/consensus/alien/snapshot.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-956">
+            <state relative-caret-position="570">
               <caret line="232" column="25" selection-start-line="232" selection-start-column="25" selection-end-line="232" selection-end-column="25" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/consensus/alien/signer_queue.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="201">
-              <caret line="111" column="20" selection-start-line="111" selection-start-column="20" selection-end-line="111" selection-end-column="20" />
             </state>
           </provider>
         </entry>
@@ -128,29 +131,11 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/consensus/alien/signer_queue_test.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="129">
-              <caret line="227" column="18" selection-start-line="227" selection-start-column="18" selection-end-line="227" selection-end-column="18" />
+            <state relative-caret-position="4930">
+              <caret line="234" column="12" lean-forward="true" selection-start-line="234" selection-start-column="12" selection-end-line="234" selection-end-column="12" />
               <folding>
                 <element signature="e#849#958#0" expanded="true" />
               </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/core/types/block.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="148">
-              <caret line="100" column="17" selection-start-line="100" selection-start-column="17" selection-end-line="100" selection-end-column="17" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/consensus/alien/custom_tx.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="188">
-              <caret line="147" column="46" selection-start-line="147" selection-start-column="39" selection-end-line="147" selection-end-column="46" />
             </state>
           </provider>
         </entry>
@@ -166,18 +151,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>calculate</find>
-      <find>ccc seal succ</find>
-      <find>accumulateRewards(</find>
-      <find>Finalize</find>
-      <find>Final</find>
-      <find>default</find>
-      <find>sign(</find>
-      <find>blockNumPerYear</find>
-      <find>snapshot</find>
-      <find>snap</find>
-      <find>accumulateRewards for</find>
-      <find>m---</find>
       <find>accumulateRewards for singer</find>
       <find>calculateReward</find>
       <find>calculateVoteReward for voter</find>
@@ -196,6 +169,18 @@
       <find>his</find>
       <find>create signer queue not allowed</find>
       <find>errCreateSignerQueueNotAllowed</find>
+      <find>ccc historyHash</find>
+      <find>snap,</find>
+      <find>promoteE</find>
+      <find>promoteTx</find>
+      <find>demoteUnexecutables</find>
+      <find>SubscribeNew</find>
+      <find>SubscribeNewTxsEvent</find>
+      <find>.Context.CanTransfer</find>
+      <find>add(</find>
+      <find>commitTransaction</find>
+      <find>promoted</find>
+      <find>call</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -210,6 +195,10 @@
         <option value="$PROJECT_DIR$/consensus/alien/alien.go" />
         <option value="$PROJECT_DIR$/consensus/alien/snapshot.go" />
         <option value="$PROJECT_DIR$/consensus/alien/signer_queue.go" />
+        <option value="$PROJECT_DIR$/core/state_processor.go" />
+        <option value="$PROJECT_DIR$/core/tx_pool.go" />
+        <option value="$PROJECT_DIR$/miner/worker.go" />
+        <option value="$PROJECT_DIR$/core/vm/evm.go" />
         <option value="$PROJECT_DIR$/consensus/alien/snapshot_test.go" />
       </list>
     </option>
@@ -226,7 +215,7 @@
     </packageJsonPaths>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="290" />
+    <option name="x" value="199" />
     <option name="y" value="23" />
     <option name="width" value="1481" />
     <option name="height" value="1016" />
@@ -237,6 +226,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -269,7 +259,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -353,47 +342,47 @@
     </recent_temporary>
   </component>
   <component name="TestHistory">
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 10m 39s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 02m 17s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 10m 45s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 02m 37s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 12m 51s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 12m 35s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 12m 55s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 17m 23s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 13m 22s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 22m 07s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 17m 54s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 29m 58s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 18m 00s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 31m 13s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 18m 55s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 32m 15s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 19m 43s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 32m 58s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.13 at 19h 21m 28s.xml">
+    <history-entry file="TestBalance_in_github_com_TTCECO_gttc_consensus_alien - 2018.12.14 at 18h 33m 19s.xml">
       <configuration name="TestBalance in github.com/TTCECO/gttc/consensus/alien" configurationId="GoTestRunConfiguration" />
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="290" y="23" width="1481" height="1016" extended-state="0" />
+    <frame x="199" y="23" width="1481" height="1016" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" weight="0.15913829" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.01181376" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.36363637" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.29761904" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -403,6 +392,7 @@
       <window_info anchor="bottom" id="Terminal" order="9" />
       <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
       <window_info anchor="bottom" id="调试" order="11" />
+      <window_info anchor="right" id="Coverage" side_tool="true" weight="0.3293954" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -524,9 +514,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="189">
           <caret line="86" column="49" selection-start-line="86" selection-start-column="42" selection-end-line="86" selection-end-column="49" />
-          <folding>
-            <element signature="e#880#1120#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -551,24 +538,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file:///usr/local/go/src/math/big/int.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="8451">
-          <caret line="318" selection-start-line="318" selection-end-line="318" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/cmd/puppeth/wizard_genesis.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1269">
           <caret line="60" column="55" selection-start-line="60" selection-start-column="43" selection-end-line="60" selection-end-column="55" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/miner/worker.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="189">
-          <caret line="498" column="42" selection-start-line="498" selection-start-column="37" selection-end-line="498" selection-end-column="42" />
         </state>
       </provider>
     </entry>
@@ -586,27 +559,24 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/consensus/alien/signer_queue.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2808">
+          <caret line="111" column="20" selection-start-line="111" selection-start-column="20" selection-end-line="111" selection-end-column="20" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/core/types/block.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="148">
+        <state relative-caret-position="2349">
           <caret line="100" column="17" selection-start-line="100" selection-start-column="17" selection-end-line="100" selection-end-column="17" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/consensus/alien/signer_queue_test.go">
+    <entry file="file://$PROJECT_DIR$/consensus/alien/custom_tx.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="129">
-          <caret line="227" column="18" selection-start-line="227" selection-start-column="18" selection-end-line="227" selection-end-column="18" />
-          <folding>
-            <element signature="e#849#958#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/consensus/alien/snapshot.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-956">
-          <caret line="232" column="25" selection-start-line="232" selection-start-column="25" selection-end-line="232" selection-end-column="25" />
+        <state relative-caret-position="3645">
+          <caret line="147" column="46" selection-start-line="147" selection-start-column="39" selection-end-line="147" selection-end-column="46" />
         </state>
       </provider>
     </entry>
@@ -617,31 +587,107 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/consensus/alien/custom_tx.go">
+    <entry file="file://$PROJECT_DIR$/core/types/transaction.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="188">
-          <caret line="147" column="46" selection-start-line="147" selection-start-column="39" selection-end-line="147" selection-end-column="46" />
+        <state relative-caret-position="235">
+          <caret line="253" column="41" lean-forward="true" selection-start-line="253" selection-start-column="41" selection-end-line="253" selection-end-column="41" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/core/tx_list.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="38">
+          <caret line="301" column="29" selection-start-line="301" selection-start-column="29" selection-end-line="301" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/core/vm/errors.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="381">
+          <caret line="25" column="4" selection-start-line="25" selection-start-column="4" selection-end-line="25" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/core/state_transition.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="193">
+          <caret line="111" column="5" selection-start-line="111" selection-start-column="5" selection-end-line="111" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/core/vm/evm.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="191">
+          <caret line="138" column="6" selection-start-line="138" selection-start-column="6" selection-end-line="138" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/miner/worker.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="230">
+          <caret line="618" lean-forward="true" selection-start-line="618" selection-end-line="618" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/core/state_processor.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="288">
+          <caret line="99" column="29" lean-forward="true" selection-start-line="99" selection-start-column="29" selection-end-line="99" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/event/feed.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-314">
+          <caret line="128" column="15" selection-start-line="128" selection-start-column="15" selection-end-line="128" selection-end-column="15" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/core/tx_pool.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="493">
+          <caret line="786" column="57" lean-forward="true" selection-start-line="786" selection-start-column="57" selection-end-line="786" selection-end-column="57" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/consensus/alien/cross_chain.go">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/consensus/alien/snapshot.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="570">
+          <caret line="232" column="25" selection-start-line="232" selection-start-column="25" selection-end-line="232" selection-end-column="25" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/consensus/alien/alien.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="192">
-          <caret line="111" column="34" selection-start-line="111" selection-start-column="4" selection-end-line="111" selection-end-column="34" />
+        <state relative-caret-position="354">
+          <caret line="103" column="18" selection-start-line="103" selection-start-column="18" selection-end-line="103" selection-end-column="18" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/consensus/alien/signer_queue.go">
+    <entry file="file:///usr/local/go/src/math/big/int.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="201">
-          <caret line="111" column="20" selection-start-line="111" selection-start-column="20" selection-end-line="111" selection-end-column="20" />
+        <state relative-caret-position="200">
+          <caret line="150" column="14" selection-start-line="150" selection-start-column="14" selection-end-line="150" selection-end-column="14" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/consensus/alien/signer_queue_test.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="4930">
+          <caret line="234" column="12" lean-forward="true" selection-start-line="234" selection-start-column="12" selection-end-line="234" selection-end-column="12" />
+          <folding>
+            <element signature="e#849#958#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/consensus/alien/snapshot_test.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2146">
-          <caret line="2472" column="14" lean-forward="true" selection-start-line="2472" selection-start-column="14" selection-end-line="2472" selection-end-column="14" />
+        <state relative-caret-position="236">
+          <caret line="2567" column="27" lean-forward="true" selection-start-line="2567" selection-start-column="27" selection-end-line="2567" selection-end-column="27" />
           <folding>
             <element signature="n#!!block;n#TestVoting#0" />
           </folding>
