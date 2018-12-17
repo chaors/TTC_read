@@ -123,7 +123,7 @@ func TestQueue(t *testing.T) {
 			number:         2,
 			maxSignerCount: 3,
 			historyHash:    []string{"x", "b", "c"},
-			tally:          map[string]uint64{"A": 30, "B": 40, "C": 10},
+			tally:          map[string]uint64{"A": 30, "B": 40, "C": 10}, // BAC  --> Bc  Ab Cx --> C B A
 			punished:       map[string]uint64{},
 			result:         []string{"C", "B", "A"},
 		},

@@ -470,7 +470,6 @@ func (a *Alien) verifySeal(chain consensus.ChainReader, header *types.Header, pa
 			}
 			// verify signerqueue
 			// 一轮签名完成，去更新签名者队列  SignerQueue变了
-
 			if number%a.config.MaxSignerCount == 0 {
 
 				fmt.Printf("ccc verifySignerQueue after a loop")
@@ -518,7 +517,7 @@ func (a *Alien) verifySeal(chain consensus.ChainReader, header *types.Header, pa
 // header for running the transactions on top.
 func (a *Alien) Prepare(chain consensus.ChainReader, header *types.Header) error {
 
-	// Set the correct difficulty
+	// Set the correct difficulty  //954945
 	header.Difficulty = new(big.Int).Set(defaultDifficulty)
 	// If now is later than genesis timestamp, skip prepare
 	if a.config.GenesisTimestamp < uint64(time.Now().Unix()) {
@@ -767,7 +766,7 @@ func (a *Alien) Seal(chain consensus.ChainReader, block *types.Block, stop <-cha
 
 	// Bail out if we're unauthorized to sign a block
 	//chaorstest
-	fmt.Printf("ccc snapshot before seal")
+	fmt.Printf("ccc snapshot before seal\n")
 	snap, err := a.snapshot(chain, number-1, header.ParentHash, nil, nil, defaultLoopCntRecalculateSigners)
 	if err != nil {
 		return nil, err
