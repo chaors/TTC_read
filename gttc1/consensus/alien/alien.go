@@ -229,7 +229,7 @@ func (a *Alien) Author(header *types.Header) (common.Address, error) {
 	return ecrecover(header, a.signatures)
 }
 
-// VerifyHeader checks whether a header conforms to the consensus rules.
+// VerifyHeaderverify checks whether a header conforms to the consensus rules.
 func (a *Alien) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
 	return a.verifyHeader(chain, header, nil)
 }

@@ -3,7 +3,11 @@ package alien
 import (
 	"fmt"
 	"github.com/TTCECO/gttc/common"
+	//"github.com/fatih/color"
+
+	//"github.com/TTCECO/gttc/crypto"
 	"github.com/TTCECO/gttc/params"
+	"io/ioutil"
 	"math/big"
 	"testing"
 
@@ -13,8 +17,15 @@ import (
 	"github.com/TTCECO/gttc/core/types"
 	"github.com/TTCECO/gttc/ethdb"
 	"github.com/TTCECO/gttc/rlp"
+	//"github.com/TTCECO/gttc/accounts"
+	"github.com/TTCECO/gttc/accounts/keystore"
+
 )
 
+const (
+	veryLightScryptN = 2
+	veryLightScryptP = 1
+)
 //func signHash(account accounts.Account, hash common.Hash) common.Hash {
 //
 //	return crypto.Sign(hash, account.Address)
@@ -25,13 +36,28 @@ func (r *testerChainReader) GetHeader(hash common.Hash, number uint64) *types.He
 	return rawdb.ReadHeader(r.db, rawdb.ReadCanonicalHash(r.db, 0), 0)
 }
 //
-//func SignerFn(accounts.Account, []byte) ([]byte, error) {
+//func SignFn(account accounts.Account, data []byte) ([]byte, error) {
 //
-//
+//	//account.Address
 //}
 
+func tmpKeyStore(t *testing.T, encrypted bool) (string, *keystore.KeyStore) {
+	d, err := ioutil.TempDir("", "alien-keystore-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	//newKs := keystore.NewPlaintextKeyStore
+	//if encrypted {
+	//	newKs := func(kd string) *keystore.KeyStore {
+	//		return keystore.NewKeyStore(kd, veryLightScryptN, veryLightScryptP)
+	//	}
+	//}
+	//ks :=
+	return d, keystore.NewKeyStore(d, veryLightScryptN, veryLightScryptP)
+}
 
 func TestAlien(t *testing.T)  {
+
 
 	// extend length of extra, so address of CoinBase can keep signature .
 	genesis := &core.Genesis{
@@ -45,22 +71,29 @@ func TestAlien(t *testing.T)  {
 	// Create a new state
 	state, _ := state.New(common.Hash{}, state.NewDatabase(db))
 
-	accounts := newTesterAccountPool()
+	//accounts := newTesterAccountPool()
 
+	_, ks := tmpKeyStore(t, true)
+	account, _ := ks.NewAccount("A")
+	ks.Unlock(account, "A")
 	// Create new alien
 	alienCfg := &params.AlienConfig{
 		Period:          uint64(3),
 		Epoch:           uint64(10),
 		MinVoterBalance: big.NewInt(int64(50)),
 		MaxSignerCount:  uint64(3),
-		SelfVoteSigners: []common.Address{accounts.address("A")},
+		SelfVoteSigners: []common.Address{account.Address},
 	}
-	state.SetBalance(accounts.address("A"), big.NewInt(100))
+	state.SetBalance(account.Address, big.NewInt(100))
+
+	//pk, _ := crypto.GenerateKey()
+	////pks := &testerAccountPool{"A":pk}
+	//crypto.Ecrecover(sigHash(header).Bytes(), signature)
 
 	alien := New(alienCfg, db)
-	alien.Authorize(alienCfg.SelfVoteSigners[0], nil)
+	alien.Authorize(alienCfg.SelfVoteSigners[0], ks.SignHash)
 
-	currentHeaderExtra := HeaderExtra{}
+		currentHeaderExtra := HeaderExtra{}
 	for i := 0; i < int(alienCfg.MaxSignerCount); i++ {
 		currentHeaderExtra.SignerQueue = append(currentHeaderExtra.SignerQueue, alienCfg.SelfVoteSigners[i%len(alienCfg.SelfVoteSigners)])
 	}
