@@ -99,6 +99,7 @@ func (ap *testerAccountPool) address(account string) common.Address {
 	if ap.accounts[account] == nil {
 		ap.accounts[account], _ = crypto.GenerateKey()
 	}
+
 	// Resolve and return the Ethereum address
 	return crypto.PubkeyToAddress(ap.accounts[account].PublicKey)
 }
@@ -126,12 +127,12 @@ func (ap *testerAccountPool)accumulateRewards(config *params.ChainConfig, header
 
 	votersReward := blockReward.Sub(blockReward, minerReward)
 
-	fmt.Printf("accumulateRewards for singer:%s---%d---%d---%d\n", header.Coinbase.Hex(), minerReward, votersReward, SignerBlockReward)
+	//fmt.Printf("accumulateRewards for singer:%s---%d---%d---%d\n", header.Coinbase.Hex(), minerReward, votersReward, SignerBlockReward)
 
 	state.AddBalance(header.Coinbase, minerReward)
 	for voter, reward := range snap.calculateReward(header.Coinbase, votersReward) {
 		state.AddBalance(voter, reward)
-		fmt.Printf("calculateVoteReward for voter:%s-----%d\n", voter.Hex(), reward)
+		//fmt.Printf("calculateVoteReward for voter:%s-----%d\n", voter.Hex(), reward)
 	}
 }
 
@@ -185,727 +186,730 @@ func (r *testerChainReader) GetHeaderByNumber(number uint64) *types.Header {
 
 // Tests that voting is evaluated correctly for various simple and complex scenarios.
 func TestVoting(t *testing.T) {
-	//// Define the various voting scenarios to test
-	//tests := []struct {
-	//	addrNames        []string             // accounts used in this case
-	//	candidateNeedPD  bool                 // candidate from POA
-	//	period           uint64               // default 3
-	//	epoch            uint64               // default 30000
-	//	maxSignerCount   uint64               // default 5 for test
-	//	minVoterBalance  int                  // default 50
-	//	genesisTimestamp uint64               // default time.now() - period + 1
-	//	lcrs             uint64               // loop count to recreate signers from top tally
-	//	selfVoters       []testerSelfVoter    //
-	//	txHeaders        []testerSingleHeader //
-	//	result           testerSnapshot       // the result of current snapshot
-	//	vlCnt            uint64
-	//}{
-	//	{
-	//		/* 	Case 0:
-	//		*	Just two self vote address A B in genesis
-	//		*  	No votes or transactions through blocks
-	//		 */
-	//		addrNames:        []string{"A", "B"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B"},
-	//			Tally:   map[string]int{"A": 100, "B": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 1:
-	//		*	Two self vote address A B in  genesis
-	//		* 	C vote D to be signer in block 3
-	//		* 	But current loop do not finish, so D is not signer,
-	//		* 	the vote info already in Tally, Voters and Votes
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(7),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
-	//			{[]testerTransaction{}},//4
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "D": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "D", 200},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 2:
-	//		*	Two self vote address in  genesis
-	//		* 	C vote D to be signer in block 2
-	//		* 	But balance of C is lower than minVoterBalance,
-	//		*   so this vote not processed, D is not signer
-	//		* 	the vote info is dropped .
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 20, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B"},
-	//			Tally:   map[string]int{"A": 100, "B": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 3:
-	//		*	Two self vote address A B in  genesis
-	//		* 	C vote D to be signer in block 3
-	//		* 	balance of C is higher than minVoterBalance
-	//		* 	D is signer in next loop
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5 ???xxx 为什么到4那里更新signers列表而不是5
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B", "D"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "D": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "D", 200},
-	//			},
-	//		},
-	//	},
-	//
-	//	{
-	//		/*	Case 4:
-	//		*	Two self vote address A B in  genesis
-	//		* 	C vote D to be signer in block 2
-	//		*  	C vote B to be signer in block 3
-	//		* 	balance of C is higher minVoterBalance
-	//		* 	the first vote from C is dropped
-	//		* 	the signers are still A and B
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
-	//			{[]testerTransaction{{from: "C", to: "B", balance: 180, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B"},
-	//			Tally:   map[string]int{"A": 100, "B": 380},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "B", 180},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 5:
-	//		*	Two self vote address A B in  genesis
-	//		* 	C vote D to be signer in block 2
-	//		*  	C transaction to E 20 in block 3
-	//		*	In Voters, the vote block number of C is still 2, not 4
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D", "E"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 100, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "E", balance: 20, isVote: false}}}, // when C transaction to E, the balance of C is 20
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},//投票限制和后来的计票是分离的，没有关系
-	//			//????计票方式按投票时的余额算，而不是实时的余额  会有什么问题？？？
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B", "D"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "D": 20},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "C": 2},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "D", 20},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 6:
-	//		*	Two self vote address A B in  genesis
-	//		* 	C vote D , J vote K, H vote I  to be signer in block 2
-	//		*   E vote F in block 3
-	//		* 	The signers in the next loop is A,B,D,F,I but not K
-	//		*	K is not top 5(maxsigercount) in Tally
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D", "E", "F", "H", "I", "J", "K"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 110, isVote: true}, {from: "J", to: "K", balance: 80, isVote: true}, {from: "H", to: "I", balance: 160, isVote: true}}},
-	//			{[]testerTransaction{{from: "E", to: "F", balance: 130, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B", "D", "F", "I"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "D": 110, "I": 160, "F": 130, "K": 80},//bifda
-	//			Voters:  map[string]int{"A": 0, "B": 0, "C": 2, "H": 2, "J": 2, "E": 3},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "D", 110},
-	//				"J": {"J", "K", 80},
-	//				"H": {"H", "I", 160},
-	//				"E": {"E", "F", 130},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		//!!!!下次从这里看(周三早上看到case6)
-	//		/*	Case 7:
-	//		*	one self vote address A in  genesis
-	//		* 	C vote D , J vote K, H vote I  to be signer in block 3
-	//		*   E vote F in block 4
-	//		* 	B vote B in block 5
-	//		* 	The signers in the next loop is A, B, D,F,I,K
-	//		*	current number - The block number of vote for A > epoch expired
-	//		*
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D", "E", "F", "H", "I", "J", "K"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(8),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//10
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 110, isVote: true}, {from: "J", to: "K", balance: 80, isVote: true}, {from: "H", to: "I", balance: 160, isVote: true}}},
-	//			{[]testerTransaction{{from: "E", to: "F", balance: 130, isVote: true}}},
-	//			{[]testerTransaction{{from: "B", to: "B", balance: 200, isVote: true}}},
-	//			{[]testerTransaction{}},//15
-	//			{[]testerTransaction{}},//16
-	//		},//a 100  d 110(12) k 80(12) I 160(12)  F 130(13)  B 200(14)  bfdi a k
-	//		result: testerSnapshot{
-	//			Signers: []string{"B", "D", "F", "I", "K"},
-	//			Tally:   map[string]int{"B": 200, "D": 110, "I": 160, "F": 130, "K": 80},
-	//			Voters:  map[string]int{"B": 14, "C": 12, "H": 12, "J": 12, "E": 13},
-	//			Votes: map[string]*testerVote{
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "D", 110},
-	//				"J": {"J", "K", 80},
-	//				"H": {"H", "I", 160},
-	//				"E": {"E", "F", 130},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 8:
-	//		*	Two self vote address A,B in  genesis
-	//		* 	C vote D , D vote C to be signer in block 3
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D", "E"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 110, isVote: true}, {from: "D", to: "C", balance: 80, isVote: true}, {from: "C", to: "E", balance: 110, isVote: false}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//		},// a 100(1)  b 200(1) D  110(3)  C  80(3)  都是
-	//		result: testerSnapshot{
-	//			Signers: []string{"B", "A", "C", "D"},
-	//			Tally:   map[string]int{"B": 200, "D": 110, "A": 100, "C": 80},
-	//			Voters:  map[string]int{"B": 0, "C": 3, "D": 3, "A": 0},
-	//			Votes: map[string]*testerVote{
-	//				"B": {"B", "B", 200},
-	//				"A": {"A", "A", 100},
-	//				"C": {"C", "D", 110},
-	//				"D": {"D", "C", 80},
-	//			},
-	//		},//t++多个账号给一个candidate投，内分新轮次是否到来
-	//	},
-	//	{
-	//		/*	Case 9:
-	//		*	Two self vote address A B in  genesis
-	//		* 	C vote D to be signer in block 3
-	//		* 	lcrs  is 2, so the signers will recalculate after 5 *2 block
-	//		* 	D is still not signer
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             2,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},// 720083
-	//			{[]testerTransaction{}},
-	//		},// a 100(1) b 200(1)  D 200(3)  > 2*5 -- > 11那重算队列  ab
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "D": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "D", 200},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 10:
-	//		*	Two self vote address A B in  genesis
-	//		* 	C vote D to be signer in block 3
-	//		* 	lcrs  is 2, so the signers will recalculate after 5 *2 block
-	//		* 	D is signer
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             2,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//10
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B", "D"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "D": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "D", 200},
-	//			},
-	//		},
-	//	},
-	//	{
-	//
-	//		/*	Case 11:
-	//		*	All self vote in  genesis
-	//		* 	lcrs  is 1, so the signers will recalculate after 5 block
-	//		*   official 21 node test case
-	//		 */
-	//		addrNames: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
-	//			"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
-	//			"A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30",
-	//			"A31", "A32", "A33", "A34", "A35", "A36", "A37", "A38", "A39", "A40"},
-	//		period:           uint64(3),
-	//		epoch:            uint64(300),
-	//		maxSignerCount:   uint64(21),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters: []testerSelfVoter{{"A1", 5000}, {"A2", 5000}, {"A3", 5000}, {"A4", 5000}, {"A5", 5000},
-	//			{"A6", 5000}, {"A7", 5000}, {"A8", 5000}, {"A9", 5000}, {"A10", 5000},
-	//			{"A11", 4000}, {"A12", 4000}, {"A13", 4000}, {"A14", 4000}, {"A15", 4000},
-	//			{"A16", 4000}, {"A17", 4000}, {"A18", 4000}, {"A19", 4000}, {"A20", 4000},
-	//			{"A21", 3000}, {"A22", 3000}, {"A23", 3000}, {"A24", 3000}, {"A25", 3000},
-	//			{"A26", 3000}, {"A27", 3000}, {"A28", 3000}, {"A29", 3000}, {"A30", 3000},
-	//			{"A31", 2000}, {"A32", 2000}, {"A33", 2000}, {"A34", 2000}, {"A35", 2000},
-	//			{"A36", 2000}, {"A37", 2000}, {"A38", 2000}, {"A39", 2000}, {"A40", 2000}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}},//21
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, //42
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
-	//			//50
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{},
-	//			Tally: map[string]int{"A1": 5000, "A2": 5000, "A3": 5000, "A4": 5000, "A5": 5000, "A6": 5000, "A7": 5000, "A8": 5000, "A9": 5000, "A10": 5000,
-	//				"A11": 4000, "A12": 4000, "A13": 4000, "A14": 4000, "A15": 4000, "A16": 4000, "A17": 4000, "A18": 4000, "A19": 4000, "A20": 4000,
-	//				"A21": 3000, "A22": 3000, "A23": 3000, "A24": 3000, "A25": 3000, "A26": 3000, "A27": 3000, "A28": 3000, "A29": 3000, "A30": 3000,
-	//				"A31": 2000, "A32": 2000, "A33": 2000, "A34": 2000, "A35": 2000, "A36": 2000, "A37": 2000, "A38": 2000, "A39": 2000, "A40": 2000},
-	//			Voters: map[string]int{"A1": 0, "A2": 0, "A3": 0, "A4": 0, "A5": 0, "A6": 0, "A7": 0, "A8": 0, "A9": 0, "A10": 0,
-	//				"A11": 0, "A12": 0, "A13": 0, "A14": 0, "A15": 0, "A16": 0, "A17": 0, "A18": 0, "A19": 0, "A20": 0,
-	//				"A21": 0, "A22": 0, "A23": 0, "A24": 0, "A25": 0, "A26": 0, "A27": 0, "A28": 0, "A29": 0, "A30": 0,
-	//				"A31": 0, "A32": 0, "A33": 0, "A34": 0, "A35": 0, "A36": 0, "A37": 0, "A38": 0, "A39": 0, "A40": 0},
-	//			Votes: map[string]*testerVote{
-	//				"A1":  {"A1", "A1", 5000},
-	//				"A2":  {"A2", "A2", 5000},
-	//				"A3":  {"A3", "A3", 5000},
-	//				"A4":  {"A4", "A4", 5000},
-	//				"A5":  {"A5", "A5", 5000},
-	//				"A6":  {"A6", "A6", 5000},
-	//				"A7":  {"A7", "A7", 5000},
-	//				"A8":  {"A8", "A8", 5000},
-	//				"A9":  {"A9", "A9", 5000},
-	//				"A10": {"A10", "A10", 5000},
-	//				"A11": {"A11", "A11", 4000},
-	//				"A12": {"A12", "A12", 4000},
-	//				"A13": {"A13", "A13", 4000},
-	//				"A14": {"A14", "A14", 4000},
-	//				"A15": {"A15", "A15", 4000},
-	//				"A16": {"A16", "A16", 4000},
-	//				"A17": {"A17", "A17", 4000},
-	//				"A18": {"A18", "A18", 4000},
-	//				"A19": {"A19", "A19", 4000},
-	//				"A20": {"A20", "A20", 4000},
-	//				"A21": {"A21", "A21", 3000},
-	//				"A22": {"A22", "A22", 3000},
-	//				"A23": {"A23", "A23", 3000},
-	//				"A24": {"A24", "A24", 3000},
-	//				"A25": {"A25", "A25", 3000},
-	//				"A26": {"A26", "A26", 3000},
-	//				"A27": {"A27", "A27", 3000},
-	//				"A28": {"A28", "A28", 3000},
-	//				"A29": {"A29", "A29", 3000},
-	//				"A30": {"A30", "A30", 3000},
-	//				"A31": {"A31", "A31", 2000},
-	//				"A32": {"A32", "A32", 2000},
-	//				"A33": {"A33", "A33", 2000},
-	//				"A34": {"A34", "A34", 2000},
-	//				"A35": {"A35", "A35", 2000},
-	//				"A36": {"A36", "A36", 2000},
-	//				"A37": {"A37", "A37", 2000},
-	//				"A38": {"A38", "A38", 2000},
-	//				"A39": {"A39", "A39", 2000},
-	//				"A40": {"A40", "A40", 2000},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		//??? vote选举不是可以直接选为candidate了吗？？？
-	//		/*	Case 12:
-	//		*   Candidate from Poa is enable
-	//		*	Two self vote address A B in  genesis
-	//		* 	C vote D to be signer in block 3, but D is not in candidates ,so this vote not valid
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		candidateNeedPD:  true,
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//		},// a 100(1) b 200(1) D 200(3)
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B"},
-	//			Tally:   map[string]int{"A": 100, "B": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				//"C": {"C", "D", 200},
-	//			},
-	//		},
-	//	},//t+++ candidateNeedPD 开关测试vote
-	//	{
-	//		/*	Case 13:
-	//		*   Candidate from Poa is enable
-	//		*	Two self vote address A B in  genesis
-	//		*   A proposal D to candidates, B declare agree to this proposal ,but not pass 2/3 * all stake, so fail
-	//		* 	C vote D to be signer in block 3, but D is not in candidates ,so this vote not valid
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		candidateNeedPD:  true,
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "A", to: "A", isProposal: true, candidate: "D", txHash: "a", proposalType: proposalTypeCandidateAdd}}},
-	//			{[]testerTransaction{{from: "B", to: "B", isDeclare: true, txHash: "a", decision: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 250, isVote: true}}},
-	//			{[]testerTransaction{}},//6
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//10
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B"},
-	//			Tally:   map[string]int{"A": 100, "B": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 14:
-	//		*   Candidate from Poa is enable
-	//		*	Two self vote address A B in  genesis
-	//		*   A proposal D to candidates, and A,B declare agree to this proposal, so D is in candidates
-	//		* 	C vote D to be signer in block 5
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D"},
-	//		candidateNeedPD:  true,
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "A", to: "A", isProposal: true, candidate: "D", txHash: "a", proposalType: proposalTypeCandidateAdd}}},
-	//			{[]testerTransaction{{from: "A", to: "A", isDeclare: true, txHash: "a", decision: true}, {from: "B", to: "B", isDeclare: true, txHash: "a", decision: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//10
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 250, isVote: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//15
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B", "D"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "D": 250},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "C": 11},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"C": {"C", "D", 250},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 15:
-	//		*   Candidate from Poa is enable
-	//		*	Two self vote address A B E F in  genesis
-	//		*   A proposal D to candidates, and A,B,F declare agree to this proposal,
-	//		*   but the sum stake of A B F is less than 2/3 of all stake, so D is not in candidates
-	//		* 	C vote D to be signer in block 5
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D", "E", "F"},
-	//		candidateNeedPD:  true,
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}, {"E", 2000}, {"F", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "A", to: "A", isProposal: true, candidate: "D", txHash: "a", proposalType: proposalTypeCandidateAdd}}},
-	//			{[]testerTransaction{{from: "A", to: "A", isDeclare: true, txHash: "a", decision: true}, {from: "B", to: "B", isDeclare: true, txHash: "a", decision: true}, {from: "F", to: "F", isDeclare: true, txHash: "a", decision: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "C", to: "D", balance: 250, isVote: true}}},
-	//			{[]testerTransaction{}},//6
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//10
-	//			{[]testerTransaction{}},
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "B", "E", "F"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "E": 2000, "F": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "E": 0, "F": 0},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"E": {"E", "E", 2000},
-	//				"F": {"F", "F", 200},
-	//			},
-	//		},
-	//	},
-	//	{
-	//		/*	Case 16:
-	//		*   Candidate from Poa is enable
-	//		*	Two self vote address A B E F in  genesis
-	//		*   A proposal B remove from candidates, and A, E ,F declare agree to this proposal,
-	//		*   the sum stake of A E F is more than 2/3 of all stake, so B is not in candidates
-	//		*   Now do not change the vote automatically,
-	//		 */
-	//		addrNames:        []string{"A", "B", "C", "D", "E", "F"},
-	//		candidateNeedPD:  true,
-	//		period:           uint64(3),
-	//		epoch:            uint64(31),
-	//		maxSignerCount:   uint64(5),
-	//		minVoterBalance:  50,
-	//		lcrs:             1,
-	//		genesisTimestamp: uint64(0),
-	//		selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}, {"E", 2000}, {"F", 200}},
-	//		txHeaders: []testerSingleHeader{
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{{from: "A", to: "A", isProposal: true, candidate: "B", txHash: "a", proposalType: proposalTypeCandidateRemove}}},
-	//			{[]testerTransaction{{from: "A", to: "A", isDeclare: true, txHash: "a", decision: true}, {from: "E", to: "E", isDeclare: true, txHash: "a", decision: true}, {from: "F", to: "F", isDeclare: true, txHash: "a", decision: true}}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//5
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},
-	//			{[]testerTransaction{}},//10
-	//		},
-	//		result: testerSnapshot{
-	//			Signers: []string{"A", "E", "F"},
-	//			Tally:   map[string]int{"A": 100, "B": 200, "E": 2000, "F": 200},
-	//			Voters:  map[string]int{"A": 0, "B": 0, "E": 0, "F": 0},
-	//			Votes: map[string]*testerVote{
-	//				"A": {"A", "A", 100},
-	//				"B": {"B", "B", 200},
-	//				"E": {"E", "E", 2000},
-	//				"F": {"F", "F", 200},
-	//			},
-	//		},
-	//	},
-	//}
+	// Define the various voting scenarios to test
+	tests := []struct {
+		addrNames        []string             // accounts used in this case
+		candidateNeedPD  bool                 // candidate from POA
+		period           uint64               // default 3
+		epoch            uint64               // default 30000
+		maxSignerCount   uint64               // default 5 for test
+		minVoterBalance  int                  // default 50
+		genesisTimestamp uint64               // default time.now() - period + 1
+		lcrs             uint64               // loop count to recreate signers from top tally
+		selfVoters       []testerSelfVoter    //
+		txHeaders        []testerSingleHeader //
+		result           testerSnapshot       // the result of current snapshot
+		vlCnt            uint64
+	}{
+		{
+			/* 	Case 0:
+			*	Just two self vote address A B in genesis
+			*  	No votes or transactions through blocks
+			 */
+			addrNames:        []string{"A", "B"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1, // lcrs * maxSignerCount
+			genesisTimestamp: uint64(0), //？？？某一个签名者没出快，后面是否到某个时间片才出！！！
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+			},
+			result: testerSnapshot{
+				Signers: []string{"B", "A"},
+				Tally:   map[string]int{"A": 100, "B": 200},
+				Voters:  map[string]int{"A": 0, "B": 0},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+				},
+			},
+		},
+		{
+			/*	Case 1:
+			*	Two self vote address A B in  genesis
+			* 	C vote D to be signer in block 3
+			* 	But current loop do not finish, so D is not signer,
+			* 	the vote info already in Tally, Voters and Votes
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(7),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
+				{[]testerTransaction{}},//4
+			},
+			//1.按投票从选举人选出签名者   lcrs * maxSignerCount
+			//2.所有的投票都是一个区块统计一次 用snap可以访问
+			result: testerSnapshot{
+				Signers: []string{"A", "B"},//4
+				Tally:   map[string]int{"A": 100, "B": 200, "D": 200},//3
+				Voters:  map[string]int{"A": 0, "B": 0, "C": 3},//1
+				Votes: map[string]*testerVote{//2
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"C": {"C", "D", 200},
+				},
+			},
+		},
+		{
+			/*	Case 2:
+			*	Two self vote address in  genesis
+			* 	C vote D to be signer in block 2
+			* 	But balance of C is lower than minVoterBalance,
+			*   so this vote not processed, D is not signer
+			* 	the vote info is dropped .
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 20, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+			},//"B": {"B", "B", 200},
+			result: testerSnapshot{
+				Signers: []string{"A", "B"},
+				Tally:   map[string]int{"A": 100, "B":200},
+				Voters:  map[string]int{"A":0, "B": 0},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+				},
+			},
+		},
+		{
+			/*	Case 3:
+			*	Two self vote address A B in  genesis
+			* 	C vote D to be signer in block 3
+			* 	balance of C is higher than minVoterBalance
+			* 	D is signer in next loop
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5 ???xxx 为什么到4那里更新signers列表而不是5
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "B", "D"},
+				Tally:   map[string]int{"A": 100, "B": 200, "D": 200},
+				Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"C": {"C", "D", 200},
+				},
+			},
+		},
 
-	//*chaorstest
+		{
+			/*	Case 4:
+			*	Two self vote address A B in  genesis
+			* 	C vote D to be signer in block 2
+			*  	C vote B to be signer in block 3
+			* 	balance of C is higher minVoterBalance
+			* 	the first vote from C is dropped
+			* 	the signers are still A and B
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
+				{[]testerTransaction{{from: "C", to: "B", balance: 180, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},//
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "B"},
+				Tally:   map[string]int{"A": 100, "B": 380},
+				Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"C": {"C", "B", 180},
+				},
+			},
+		},
+		{
+			/*	Case 5:
+			*	Two self vote address A B in  genesis
+			* 	C vote D to be signer in block 2
+			*  	C transaction to E 20 in block 3
+			*	In Voters, the vote block number of C is still 2, not 4
+			 */
+			addrNames:        []string{"A", "B", "C", "D", "E"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 100, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "E", balance: 20, isVote: false}}}, // when C transaction to E, the balance of C is 20
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},//投票限制和后来的计票是分离的，没有关系
+				//????计票方式按投票时的余额算，而不是实时的余额  会有什么问题？？？
+
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "B", "D"},
+				Tally:   map[string]int{"A": 100, "B": 200, "D": 20},
+				Voters:  map[string]int{"A":0, "B": 0, "C": 2},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"C": {"C", "D", 20},
+				},
+			},
+		},
+		{
+			/*	Case 6:
+			*	Two self vote address A B in  genesis
+			* 	C vote D , J vote K, H vote I  to be signer in block 2
+			*   E vote F in block 3
+			* 	The signers in the next loop is A,B,D,F,I but not K
+			*	K is not top 5(maxsigercount) in Tally
+			 */
+			addrNames:        []string{"A", "B", "C", "D", "E", "F", "H", "I", "J", "K"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 110, isVote: true}, {from: "J", to: "K", balance: 80, isVote: true}, {from: "H", to: "I", balance: 160, isVote: true}}},
+				{[]testerTransaction{{from: "E", to: "F", balance: 130, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+				{[]testerTransaction{}}, // A, B, D, I, F
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "B", "D", "F", "I"},
+				Tally:   map[string]int{"A": 100, "B": 200, "D": 110, "I": 160, "F": 130, "K": 80},//bifda
+				Voters:  map[string]int{"A": 0, "B": 0, "C": 2, "H": 2, "J": 2, "E": 3},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"C": {"C", "D", 110},
+					"J": {"J", "K", 80},
+					"H": {"H", "I", 160},
+					"E": {"E", "F", 130},
+				},
+			},
+		},
+		{
+			//!!!!下次从这里看(周三早上看到case6)
+			/*	Case 7:
+			*	one self vote address A in  genesis
+			* 	C vote D , J vote K, H vote I  to be signer in block 3
+			*   E vote F in block 4
+			* 	B vote B in block 5
+			* 	The signers in the next loop is A, B, D,F,I,K
+			*	current number - The block number of vote for A > epoch expired
+			*
+			 */
+			addrNames:        []string{"A", "B", "C", "D", "E", "F", "H", "I", "J", "K"},
+			period:           uint64(3),
+			epoch:            uint64(8),//隔epoch个区块后的投票过期
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//10
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 110, isVote: true}, {from: "J", to: "K", balance: 80, isVote: true}, {from: "H", to: "I", balance: 160, isVote: true}}},
+				{[]testerTransaction{{from: "E", to: "F", balance: 130, isVote: true}}},
+				{[]testerTransaction{{from: "B", to: "B", balance: 200, isVote: true}}},
+				{[]testerTransaction{}},//15
+				{[]testerTransaction{}},//16
+			},//A, D, I, F, B
+			result: testerSnapshot{
+				Signers: []string{"B", "D", "F", "I", "K"},
+				Tally:   map[string]int{"B": 200, "D": 110, "I": 160, "F": 130, "K": 80},
+				Voters:  map[string]int{"B": 14, "C": 12, "H": 12, "J": 12, "E": 13},
+				Votes: map[string]*testerVote{
+					"B": {"B", "B", 200},
+					"C": {"C", "D", 110},
+					"J": {"J", "K", 80},
+					"H": {"H", "I", 160},
+					"E": {"E", "F", 130},
+				},
+			},
+		},
+		{
+			/*	Case 8:
+			*	Two self vote address A,B in  genesis
+			* 	C vote D , D vote C to be signer in block 3
+			 */
+			addrNames:        []string{"A", "B", "C", "D", "E"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 110, isVote: true}, {from: "D", to: "C", balance: 80, isVote: true}, {from: "C", to: "E", balance: 110, isVote: false}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+			},//
+			result: testerSnapshot{
+				Signers: []string{"B", "A", "C", "D"},
+				Tally:   map[string]int{"B": 200, "D": 110, "A": 100, "C": 80},
+				Voters:  map[string]int{"B": 0, "C": 3, "D": 3, "A": 0},
+				Votes: map[string]*testerVote{
+					"B": {"B", "B", 200},
+					"A": {"A", "A", 100},
+					"C": {"C", "D", 110},
+					"D": {"D", "C", 80},
+				},
+			},//t++多个账号给一个candidate投，内分新轮次是否到来
+		},
+		{
+			/*	Case 9:
+			*	Two self vote address A B in  genesis
+			* 	C vote D to be signer in block 3
+			* 	lcrs  is 2, so the signers will recalculate after 5 *2 block
+			* 	D is still not signer
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             2,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},//
+				{[]testerTransaction{}},
+			},// a 100(1) b 200(1)  D 200(3)  > 2*5 -- > 11那重算队列  ab
+			result: testerSnapshot{
+				Signers: []string{"A", "B"},
+				Tally:   map[string]int{"A": 100, "B": 200, "D": 200},
+				Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"C": {"C", "D", 200},
+				},
+			},
+		},
+		{
+			/*	Case 10:
+			*	Two self vote address A B in  genesis
+			* 	C vote D to be signer in block 3
+			* 	lcrs  is 2, so the signers will recalculate after 5 *2 block
+			* 	D is signer
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             2,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//10
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "B", "D"},
+				Tally:   map[string]int{"A": 100, "B": 200, "D": 200},
+				Voters:  map[string]int{"A": 0, "B": 0, "C": 3},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"C": {"C", "D", 200},
+				},
+			},
+		},
+		{
+
+			/*	Case 11:
+			*	All self vote in  genesis
+			* 	lcrs  is 1, so the signers will recalculate after 5 block
+			*   official 21 node test case
+			 */
+			addrNames: []string{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+				"A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20",
+				"A21", "A22", "A23", "A24", "A25", "A26", "A27", "A28", "A29", "A30",
+				"A31", "A32", "A33", "A34", "A35", "A36", "A37", "A38", "A39", "A40"},
+			period:           uint64(3),
+			epoch:            uint64(300),
+			maxSignerCount:   uint64(21),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters: []testerSelfVoter{{"A1", 5000}, {"A2", 5000}, {"A3", 5000}, {"A4", 5000}, {"A5", 5000},
+				{"A6", 5000}, {"A7", 5000}, {"A8", 5000}, {"A9", 5000}, {"A10", 5000},
+				{"A11", 4000}, {"A12", 4000}, {"A13", 4000}, {"A14", 4000}, {"A15", 4000},
+				{"A16", 4000}, {"A17", 4000}, {"A18", 4000}, {"A19", 4000}, {"A20", 4000},
+				{"A21", 3000}, {"A22", 3000}, {"A23", 3000}, {"A24", 3000}, {"A25", 3000},
+				{"A26", 3000}, {"A27", 3000}, {"A28", 3000}, {"A29", 3000}, {"A30", 3000},
+				{"A31", 2000}, {"A32", 2000}, {"A33", 2000}, {"A34", 2000}, {"A35", 2000},
+				{"A36", 2000}, {"A37", 2000}, {"A38", 2000}, {"A39", 2000}, {"A40", 2000}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}},//21
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, //42
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				{[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}}, {[]testerTransaction{}},
+				//50
+			},
+			result: testerSnapshot{
+				Signers: []string{},
+				Tally: map[string]int{"A1": 5000, "A2": 5000, "A3": 5000, "A4": 5000, "A5": 5000, "A6": 5000, "A7": 5000, "A8": 5000, "A9": 5000, "A10": 5000,
+					"A11": 4000, "A12": 4000, "A13": 4000, "A14": 4000, "A15": 4000, "A16": 4000, "A17": 4000, "A18": 4000, "A19": 4000, "A20": 4000,
+					"A21": 3000, "A22": 3000, "A23": 3000, "A24": 3000, "A25": 3000, "A26": 3000, "A27": 3000, "A28": 3000, "A29": 3000, "A30": 3000,
+					"A31": 2000, "A32": 2000, "A33": 2000, "A34": 2000, "A35": 2000, "A36": 2000, "A37": 2000, "A38": 2000, "A39": 2000, "A40": 2000},
+				Voters: map[string]int{"A1": 0, "A2": 0, "A3": 0, "A4": 0, "A5": 0, "A6": 0, "A7": 0, "A8": 0, "A9": 0, "A10": 0,
+					"A11": 0, "A12": 0, "A13": 0, "A14": 0, "A15": 0, "A16": 0, "A17": 0, "A18": 0, "A19": 0, "A20": 0,
+					"A21": 0, "A22": 0, "A23": 0, "A24": 0, "A25": 0, "A26": 0, "A27": 0, "A28": 0, "A29": 0, "A30": 0,
+					"A31": 0, "A32": 0, "A33": 0, "A34": 0, "A35": 0, "A36": 0, "A37": 0, "A38": 0, "A39": 0, "A40": 0},
+				Votes: map[string]*testerVote{
+					"A1":  {"A1", "A1", 5000},
+					"A2":  {"A2", "A2", 5000},
+					"A3":  {"A3", "A3", 5000},
+					"A4":  {"A4", "A4", 5000},
+					"A5":  {"A5", "A5", 5000},
+					"A6":  {"A6", "A6", 5000},
+					"A7":  {"A7", "A7", 5000},
+					"A8":  {"A8", "A8", 5000},
+					"A9":  {"A9", "A9", 5000},
+					"A10": {"A10", "A10", 5000},
+					"A11": {"A11", "A11", 4000},
+					"A12": {"A12", "A12", 4000},
+					"A13": {"A13", "A13", 4000},
+					"A14": {"A14", "A14", 4000},
+					"A15": {"A15", "A15", 4000},
+					"A16": {"A16", "A16", 4000},
+					"A17": {"A17", "A17", 4000},
+					"A18": {"A18", "A18", 4000},
+					"A19": {"A19", "A19", 4000},
+					"A20": {"A20", "A20", 4000},
+					"A21": {"A21", "A21", 3000},
+					"A22": {"A22", "A22", 3000},
+					"A23": {"A23", "A23", 3000},
+					"A24": {"A24", "A24", 3000},
+					"A25": {"A25", "A25", 3000},
+					"A26": {"A26", "A26", 3000},
+					"A27": {"A27", "A27", 3000},
+					"A28": {"A28", "A28", 3000},
+					"A29": {"A29", "A29", 3000},
+					"A30": {"A30", "A30", 3000},
+					"A31": {"A31", "A31", 2000},
+					"A32": {"A32", "A32", 2000},
+					"A33": {"A33", "A33", 2000},
+					"A34": {"A34", "A34", 2000},
+					"A35": {"A35", "A35", 2000},
+					"A36": {"A36", "A36", 2000},
+					"A37": {"A37", "A37", 2000},
+					"A38": {"A38", "A38", 2000},
+					"A39": {"A39", "A39", 2000},
+					"A40": {"A40", "A40", 2000},
+				},
+			},
+		},
+		{
+			//??? vote选举不是可以直接选为candidate了吗？？？
+			/*	Case 12:
+			*   Candidate from Poa is enable
+			*	Two self vote address A B in  genesis
+			* 	C vote D to be signer in block 3, but D is not in candidates ,so this vote not valid
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			candidateNeedPD:  true,
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 200, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+			},// a 100(1) b 200(1) D 200(3)
+			result: testerSnapshot{
+				Signers: []string{"A", "B"},
+				Tally:   map[string]int{"A": 100, "B": 200},
+				Voters:  map[string]int{"A": 0, "B": 0},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					//"C": {"C", "D", 200},
+				},
+			},
+		},//t+++ candidateNeedPD 开关测试vote
+		{
+			/*	Case 13:
+			*   Candidate from Poa is enable
+			*	Two self vote address A B in  genesis
+			*   A proposal D to candidates, B declare agree to this proposal ,but not pass 2/3 * all stake, so fail
+			* 	C vote D to be signer in block 3, but D is not in candidates ,so this vote not valid
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			candidateNeedPD:  true,
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "A", to: "A", isProposal: true, candidate: "D", txHash: "a", proposalType: proposalTypeCandidateAdd}}},
+				{[]testerTransaction{{from: "B", to: "B", isDeclare: true, txHash: "a", decision: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 250, isVote: true}}},
+				{[]testerTransaction{}},//6
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//10
+				{[]testerTransaction{}},
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "B"},
+				Tally:   map[string]int{"A": 100, "B": 200},
+				Voters:  map[string]int{"A": 0, "B": 0},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+				},
+			},
+		},
+		{
+			/*	Case 14:
+			*   Candidate from Poa is enable
+			*	Two self vote address A B in  genesis
+			*   A proposal D to candidates, and A,B declare agree to this proposal, so D is in candidates
+			* 	C vote D to be signer in block 5
+			 */
+			addrNames:        []string{"A", "B", "C", "D"},
+			candidateNeedPD:  true,
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "A", to: "A", isProposal: true, candidate: "D", txHash: "a", proposalType: proposalTypeCandidateAdd}}},
+				{[]testerTransaction{{from: "A", to: "A", isDeclare: true, txHash: "a", decision: true}, {from: "B", to: "B", isDeclare: true, txHash: "a", decision: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//10
+				{[]testerTransaction{{from: "C", to: "D", balance: 250, isVote: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//15
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "B", "D"},
+				Tally:   map[string]int{"A": 100, "B": 200, "D": 250},
+				Voters:  map[string]int{"A": 0, "B": 0, "C": 11},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"C": {"C", "D", 250},
+				},
+			},
+		},
+		{
+			/*	Case 15:
+			*   Candidate from Poa is enable
+			*	Two self vote address A B E F in  genesis
+			*   A proposal D to candidates, and A,B,F declare agree to this proposal,
+			*   but the sum stake of A B F is less than 2/3 of all stake, so D is not in candidates
+			* 	C vote D to be signer in block 5
+			 */
+			addrNames:        []string{"A", "B", "C", "D", "E", "F"},
+			candidateNeedPD:  true,
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}, {"E", 2000}, {"F", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "A", to: "A", isProposal: true, candidate: "D", txHash: "a", proposalType: proposalTypeCandidateAdd}}},
+				{[]testerTransaction{{from: "A", to: "A", isDeclare: true, txHash: "a", decision: true}, {from: "B", to: "B", isDeclare: true, txHash: "a", decision: true}, {from: "F", to: "F", isDeclare: true, txHash: "a", decision: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "C", to: "D", balance: 250, isVote: true}}},
+				{[]testerTransaction{}},//6
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//10
+				{[]testerTransaction{}},
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "B", "E", "F"},
+				Tally:   map[string]int{"A": 100, "B": 200, "E": 2000, "F": 200},
+				Voters:  map[string]int{"A": 0, "B": 0, "E": 0, "F": 0},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"E": {"E", "E", 2000},
+					"F": {"F", "F", 200},
+				},
+			},
+		},
+		{
+			/*	Case 16:
+			*   Candidate from Poa is enable
+			*	Two self vote address A B E F in  genesis
+			*   A proposal B remove from candidates, and A, E ,F declare agree to this proposal,
+			*   the sum stake of A E F is more than 2/3 of all stake, so B is not in candidates
+			*   Now do not change the vote automatically,
+			 */
+			addrNames:        []string{"A", "B", "C", "D", "E", "F"},
+			candidateNeedPD:  true,
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(5),
+			minVoterBalance:  50,
+			lcrs:             1,
+			genesisTimestamp: uint64(0),
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}, {"E", 2000}, {"F", 200}},
+			txHeaders: []testerSingleHeader{
+				{[]testerTransaction{}},
+				{[]testerTransaction{{from: "A", to: "A", isProposal: true, candidate: "B", txHash: "a", proposalType: proposalTypeCandidateRemove}}},
+				{[]testerTransaction{{from: "A", to: "A", isDeclare: true, txHash: "a", decision: true}, {from: "E", to: "E", isDeclare: true, txHash: "a", decision: true}, {from: "F", to: "F", isDeclare: true, txHash: "a", decision: true}}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//5
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},
+				{[]testerTransaction{}},//10
+			},
+			result: testerSnapshot{
+				Signers: []string{"A", "E", "F"},
+				Tally:   map[string]int{"A": 100, "B": 200, "E": 2000, "F": 200},
+				Voters:  map[string]int{"A": 0, "B": 0, "E": 0, "F": 0},
+				Votes: map[string]*testerVote{
+					"A": {"A", "A", 100},
+					"B": {"B", "B", 200},
+					"E": {"E", "E", 2000},
+					"F": {"F", "F", 200},
+				},
+			},
+		},
+	}
+
+	/*chaorstest
 	tests := []struct {
 		addrNames        []string             // accounts used in this case
 		candidateNeedPD  bool                 // candidate from POA
@@ -921,7 +925,7 @@ func TestVoting(t *testing.T) {
 		vlCnt            uint64
 	}{
 
-		//+++10 A在区块2投票给B,B在区块4投票 区块5开始重计签名者  但是这里计票使用的是区块4的快照 b-->a的投票并未计入签名者
+		//+++11 A在区块2投票给B,B在区块5投票 区块5开始重计签名者  但是这里计票使用的是区块4的快照 b-->a的投票并未计入签名者
 		{
 			addrNames:        []string{"A", "B", "C"},
 			period:           uint64(3),
@@ -941,10 +945,10 @@ func TestVoting(t *testing.T) {
 				{[]testerTransaction{}},//b
 				{[]testerTransaction{}},//b
 				{[]testerTransaction{}},//b
-				{[]testerTransaction{}},//b  //10
+				//{[]testerTransaction{}},//b  //10
 			},
 			result: testerSnapshot{
-				Signers: []string{"B", "A"},
+				Signers: []string{"B"},
 				Tally:   map[string]int{"B": 100, "A":200},
 				Voters:  map[string]int{"A": 2, "B": 5},
 				Votes: map[string]*testerVote{
@@ -954,7 +958,7 @@ func TestVoting(t *testing.T) {
 			},
 		},
 
-		////+++10 A在区块2投票给B,B在区块4投票 区块5开始重计签名者  但是这里计票使用的是区块4的快照 b-->a的投票并未计入签名者
+		////+++10 A在区块2投票给B,B在区块4投票 区块5开始重计签名者  但是这里计票使用的是区块4的快照 b-->a的投票会计入签名者
 		//{
 		//	addrNames:        []string{"A", "B", "C"},
 		//	period:           uint64(3),

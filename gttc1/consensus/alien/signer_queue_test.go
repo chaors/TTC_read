@@ -276,6 +276,5 @@ func TestQueue(t *testing.T) {
 				}
 			}
 		}
-
 	}
 }

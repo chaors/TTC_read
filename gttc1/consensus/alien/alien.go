@@ -390,7 +390,7 @@ func (a *Alien) snapshot(chain consensus.ChainReader, number uint64, hash common
 	}
 
 	//chaorstest
-	fmt.Printf("ccc snap apply will start in snapshot")
+	//fmt.Printf("ccc snap apply will start in snapshot")
 	snap, err := snap.apply(headers)
 	if err != nil {
 		return nil, err
@@ -548,7 +548,7 @@ func (a *Alien) mcInturn(chain consensus.ChainReader, signer common.Address, hea
 	if chain.Config().Alien.SideChain {
 		ms, err := a.getMainChainSnapshotByTime(chain, headerTime)
 		if err != nil {
-			log.Info("Main chain snapshot query fail ", "err", err)
+			log.Info("Main chain snapshot query fail", "err", err)
 			return false
 		}
 		// calculate the coinbase by loopStartTime & signers slice
@@ -604,7 +604,7 @@ func (a *Alien) mcConfirmBlock(chain consensus.ChainReader, header *types.Header
 func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 
 	//chaorstest
-	log.Info("ccc Alien Finalize starting...", "number", header.Number)
+	//fmt.Printf("ccc Alien Finalize starting number---%d\n", header.Number)
 
 	number := header.Number.Uint64()
 
@@ -632,6 +632,7 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 	parentHeaderExtra := HeaderExtra{}
 	currentHeaderExtra := HeaderExtra{}
 
+	//fmt.Printf("ccc Alien Finalize starting1 number:%d\n", header.Number)
 	if number == 1 {
 		alreadyVote := make(map[common.Address]struct{})
 		for _, voter := range a.config.SelfVoteSigners {
@@ -659,14 +660,18 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 	}
 
 	// calculate votes write into header.extra
+	//fmt.Printf("ccc Alien Finalize starting2 number:%d\n", header.Number)
+
 	currentHeaderExtra, err := a.processCustomTx(currentHeaderExtra, chain, header, state, txs)
 	if err != nil {
+		fmt.Printf("processCustomTx fail:%v\n", err)
 		return nil, err
 	}
 
 	// Assemble the voting snapshot to check which votes make sense
 	snap, err := a.snapshot(chain, number-1, header.ParentHash, nil, genesisVotes, defaultLoopCntRecalculateSigners)
 	if err != nil {
+		fmt.Printf("snapshot fail:%v\n", err)
 		return nil, err
 	}
 	if !chain.Config().Alien.SideChain {
@@ -706,6 +711,7 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 	// encode header.extra
 	currentHeaderExtraEnc, err := rlp.EncodeToBytes(currentHeaderExtra)
 	if err != nil {
+		fmt.Printf("EncodeToBytes fail:%v\n", err)
 		return nil, err
 	}
 
@@ -849,7 +855,7 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		// rewards for the miner
 
 		//chaorstest
-		fmt.Printf("ccc set rewards:%d for miner:%s", minerReward, header.Coinbase.Hex())
+		//fmt.Printf("ccc set rewards:%d for miner:%s", minerReward, header.Coinbase.Hex())
 
 		state.AddBalance(header.Coinbase, minerReward)
 	} else {
