@@ -181,6 +181,8 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	}
 	signature := header.Extra[len(header.Extra)-extraSeal:]
 
+	fmt.Printf("ccc signature length:%v\n", len(signature))
+
 	// Recover the public key and the Ethereum address
 	pubkey, err := crypto.Ecrecover(sigHash(header).Bytes(), signature)
 	if err != nil {
@@ -229,7 +231,7 @@ func (a *Alien) Author(header *types.Header) (common.Address, error) {
 	return ecrecover(header, a.signatures)
 }
 
-// VerifyHeader checks whether a header conforms to the consensus rules.
+// V erifyHeader checks whether a header conforms to the consensus rules.
 func (a *Alien) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
 	return a.verifyHeader(chain, header, nil)
 }
@@ -390,7 +392,12 @@ func (a *Alien) snapshot(chain consensus.ChainReader, number uint64, hash common
 	}
 
 	//chaorstest
-	//fmt.Printf("ccc snap apply will start in snapshot")
+	fmt.Printf("ccc  numberLen-%v\n", len(headers))
+	for _, head := range headers {
+
+		fmt.Printf("ccc  number-%v\nheader:%v\n", number, head)
+	}
+
 	snap, err := snap.apply(headers)
 	if err != nil {
 		return nil, err
@@ -809,7 +816,7 @@ func (a *Alien) Seal(chain consensus.ChainReader, block *types.Block, stop <-cha
 
 	//chaorstest
 	log.Info("ccc seal succ...", "number", header.Number)
-	fmt.Println("signHash:", sighash, "---signer:", a.signer.Hex())
+	fmt.Printf("signHash:%v\n---signer:%v\n", sighash, a.signer.Hex())
 
 	return block.WithSeal(header), nil
 }

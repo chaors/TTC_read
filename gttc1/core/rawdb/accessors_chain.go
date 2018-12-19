@@ -29,6 +29,7 @@ import (
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
 func ReadCanonicalHash(db DatabaseReader, number uint64) common.Hash {
+
 	data, _ := db.Get(append(append(headerPrefix, encodeBlockNumber(number)...), headerHashSuffix...))
 	if len(data) == 0 {
 		return common.Hash{}
@@ -145,9 +146,11 @@ func HasHeader(db DatabaseReader, hash common.Hash, number uint64) bool {
 // ReadHeader retrieves the block header corresponding to the hash.
 func ReadHeader(db DatabaseReader, hash common.Hash, number uint64) *types.Header {
 	data := ReadHeaderRLP(db, hash, number)
+
 	if len(data) == 0 {
 		return nil
 	}
+
 	header := new(types.Header)
 	if err := rlp.Decode(bytes.NewReader(data), header); err != nil {
 		log.Error("Invalid block header RLP", "hash", hash, "err", err)
