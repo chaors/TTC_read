@@ -212,7 +212,7 @@ func (s *Snapshot) copy() *Snapshot {
 func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 
 	//chaorstest
-	fmt.Printf("ccc snap apply startting...\n")
+	//fmt.Printf("ccc snap apply startting...\n")
 
 	// Allow passing in no headers for cleaner code
 	if len(headers) == 0 {
@@ -232,6 +232,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 
 	for _, header := range headers {
 		// Resolve the authorization key and check against signers
+		//fmt.Printf("hccc ecrecover header:%v---%v\n----%v\n---%v\n---%v\n", header.Number, header.Coinbase.Hex(), header.Hash().Hex(), header.ParentHash.Hex(), header.Extra[len(header.Extra)-extraSeal:])
 		coinbase, err := ecrecover(header, s.sigcache)
 		if err != nil {
 			return nil, err
@@ -711,6 +712,7 @@ func (s *Snapshot) calculateReward(coinbase common.Address, votersReward *big.In
 			rewards[voter] = new(big.Int).Set(vote.Stake)
 		}
 	}
+
 	for _, stake := range rewards {
 		stake.Mul(stake, votersReward)
 		stake.Div(stake, allStake)

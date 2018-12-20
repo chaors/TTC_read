@@ -181,7 +181,7 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	}
 	signature := header.Extra[len(header.Extra)-extraSeal:]
 
-	fmt.Printf("ccc signature length:%v\n", len(signature))
+	//fmt.Printf("ccc signature length:%v\n", len(signature))
 
 	// Recover the public key and the Ethereum address
 	pubkey, err := crypto.Ecrecover(sigHash(header).Bytes(), signature)
@@ -317,7 +317,7 @@ func (a *Alien) verifyCascadingFields(chain consensus.ChainReader, header *types
 	}
 	// Retrieve the snapshot needed to verify this header and cache it
 	//chaorstest
-	fmt.Printf("ccc snapshot when verifyCas")
+	//fmt.Printf("ccc snapshot when verifyCas")
 	_, err := a.snapshot(chain, number-1, header.ParentHash, parents, nil, defaultLoopCntRecalculateSigners)
 	if err != nil {
 		return err
@@ -383,6 +383,8 @@ func (a *Alien) snapshot(chain consensus.ChainReader, number uint64, hash common
 				return nil, consensus.ErrUnknownAncestor
 			}
 		}
+
+		//fmt.Printf("ccc GetHeader header:%v---%v\n----%v\n---%v\n---%v\n", header.Number, header.Coinbase.Hex(), header.Hash().Hex(), header.ParentHash.Hex(), header.Extra[len(header.Extra)-extraSeal:])
 		headers = append(headers, header)
 		number, hash = number-1, header.ParentHash
 	}
@@ -392,11 +394,11 @@ func (a *Alien) snapshot(chain consensus.ChainReader, number uint64, hash common
 	}
 
 	//chaorstest
-	fmt.Printf("ccc  numberLen-%v\n", len(headers))
-	for _, head := range headers {
-
-		fmt.Printf("ccc  number-%v\nheader:%v\n", number, head)
-	}
+	//fmt.Printf("ccc  numberLen-%v\n", len(headers))
+	//for _, head := range headers {
+	//
+	//	fmt.Printf("ccc  number-%v\nhash:%v\n%v\n", head.Number, head.Hash().Hex(), head.ParentHash.Hex())
+	//}
 
 	snap, err := snap.apply(headers)
 	if err != nil {
@@ -442,7 +444,7 @@ func (a *Alien) verifySeal(chain consensus.ChainReader, header *types.Header, pa
 	}
 	// Retrieve the snapshot needed to verify this header and cache it
 	//chaorstest
-	fmt.Printf("ccc snapshot when verify seal")
+	//fmt.Printf("ccc snapshot when verify seal")
 	snap, err := a.snapshot(chain, number-1, header.ParentHash, parents, nil, defaultLoopCntRecalculateSigners)
 	if err != nil {
 		return err
@@ -619,6 +621,7 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 	header.MixDigest = common.Hash{}
 
 	// Ensure the timestamp has the correct delay
+	//fmt.Printf(" GetHeader-%v---%v\n", header.Number, header.ParentHash)
 	parent := chain.GetHeader(header.ParentHash, number-1)
 	if parent == nil {
 		return nil, consensus.ErrUnknownAncestor
@@ -779,7 +782,7 @@ func (a *Alien) Seal(chain consensus.ChainReader, block *types.Block, stop <-cha
 
 	// Bail out if we're unauthorized to sign a block
 	//chaorstest
-	fmt.Printf("ccc snapshot before seal\n")
+	//fmt.Printf("ccc snapshot before seal\n")
 	snap, err := a.snapshot(chain, number-1, header.ParentHash, nil, nil, defaultLoopCntRecalculateSigners)
 	if err != nil {
 		return nil, err
@@ -815,8 +818,8 @@ func (a *Alien) Seal(chain consensus.ChainReader, block *types.Block, stop <-cha
 	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
 
 	//chaorstest
-	log.Info("ccc seal succ...", "number", header.Number)
-	fmt.Printf("signHash:%v\n---signer:%v\n", sighash, a.signer.Hex())
+	//log.Info("ccc seal succ...", "number", header.Number)
+	//fmt.Printf("signHash:%v\n---signer:%v\n", sighash, a.signer.Hex())
 
 	return block.WithSeal(header), nil
 }
