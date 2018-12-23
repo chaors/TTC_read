@@ -14,12 +14,14 @@ import (
 	"io/ioutil"
 	"math/big"
 	"testing"
+	"time"
 )
 
 const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
 )
+
 
 func (r *testerChainReader) GetHeader(hash common.Hash, number uint64) *types.Header {
 
@@ -97,13 +99,15 @@ func TestAlien(t *testing.T)  {
 			uint64(10),
 			big.NewInt(int64(50)),
 			uint64(3),
-			[]testerSelfVoter{{"B", 100}, {"A", 200}},
+			[]testerSelfVoter{{"B", 100}, {"A", 100}, {"C", 120}},
 			[]testerSingleHeader{
 				{[]testerTransaction{}},
 				{[]testerTransaction{}},
 				{[]testerTransaction{}},
-				{[]testerTransaction{}},
-				{[]testerTransaction{}},
+				//{[]testerTransaction{}},
+				//{[]testerTransaction{}},
+				//{[]testerTransaction{}},
+				//{[]testerTransaction{}},
 			},
 		},
 	}
@@ -125,6 +129,7 @@ func TestAlien(t *testing.T)  {
 		// extend length of extra, so address of CoinBase can keep signature .
 		genesis := &core.Genesis{
 			ExtraData: make([]byte, extraVanity+extraSeal),
+			Timestamp:uint64(time.Now().Unix()),
 		}
 
 		// Create a pristine blockchain with the genesis injected
@@ -142,7 +147,7 @@ func TestAlien(t *testing.T)  {
 		for _, selfVoter := range tt.SelfVoteSigners {
 
 			selfVoteSigners = append(selfVoteSigners, accountsPool.accounts[selfVoter.voter].Address)
-			state.AddBalance(accountsPool.accounts[selfVoter.voter].Address, big.NewInt(int64(selfVoter.balance)).Mul(big.NewInt(int64(selfVoter.balance)), big.NewInt(1e+18)))
+			state.AddBalance(accountsPool.accounts[selfVoter.voter].Address, big.NewInt(0).Mul(big.NewInt(int64(selfVoter.balance)), big.NewInt(1e+18)))
 		}
 
 		alienCfg := &params.AlienConfig{
@@ -151,10 +156,10 @@ func TestAlien(t *testing.T)  {
 			MinVoterBalance: tt.MinVoterBalance,
 			MaxSignerCount:  tt.MaxSignerCount,
 			SelfVoteSigners: selfVoteSigners,
+			GenesisTimestamp:chainReader.GetHeaderByNumber(0).Time.Uint64()+tt.Period,
 		}
 
 		alien := New(alienCfg, db)
-		alien.Authorize(alienCfg.SelfVoteSigners[0], ks.SignHash)
 
 		currentHeaderExtra := HeaderExtra{}
 		signer := common.Address{}
@@ -162,18 +167,16 @@ func TestAlien(t *testing.T)  {
 		for j, txHeader := range tt.txHeaders {
 			//(j==0) means (header.Number==1)
 			if j == 0 {
-				for k := 0; k < int(alienCfg.MaxSignerCount); k++ {
-					currentHeaderExtra.SignerQueue = append(currentHeaderExtra.SignerQueue, alienCfg.SelfVoteSigners[k%len(alienCfg.SelfVoteSigners)])
-				}
-				currentHeaderExtra.LoopStartTime = uint64(0)
-				signer = alienCfg.SelfVoteSigners[0]  //
+
+				signer = alienCfg.SelfVoteSigners[0]
 			}else {
 
 				// decode signer message from last blockHeader.Extra
-				header := rawdb.ReadHeader(db, rawdb.ReadCanonicalHash(db, uint64(j-1)), uint64(j-1))
+				header := chainReader.GetHeaderByNumber(uint64(j))
 				rlp.DecodeBytes(header.Extra[extraVanity:len(header.Extra)-extraSeal], &currentHeaderExtra)
+				loopCount := uint64(j-1)/alienCfg.Period
+				currentHeaderExtra.LoopStartTime = currentHeaderExtra.LoopStartTime+ loopCount*alienCfg.Period*alienCfg.MaxSignerCount
 				signer = currentHeaderExtra.SignerQueue[uint64(j)%alienCfg.MaxSignerCount]
-				currentHeaderExtra.LoopStartTime = currentHeaderExtra.LoopStartTime+alienCfg.Period*alienCfg.MaxSignerCount
 			}
 
 			currentHeaderExtraEnc, err := rlp.EncodeToBytes(currentHeaderExtra)
@@ -183,11 +186,12 @@ func TestAlien(t *testing.T)  {
 
 			header := &types.Header{
 				Number:   big.NewInt(int64(j+1)),
-				Time:     big.NewInt((int64(j+1))*int64(defaultBlockPeriod) - 1),
+				Time:     big.NewInt(0),
 				Coinbase: signer,
 				Extra:    ExtraData,
 				ParentHash:chainReader.GetHeaderByNumber(uint64(j)).Hash(),
 			}
+			alien.Authorize(signer, ks.SignHash)
 
 			//start alien to sealing block
 			err = alien.Prepare(chainReader, header)
@@ -213,6 +217,17 @@ func TestAlien(t *testing.T)  {
 				t.Errorf("test%v: failed to Finalize: %v", i, err)
 			}
 
+			// in:= make(chan struct{})
+			//out:
+			//	for {
+			//		select {
+			//		case <- in:
+			//			b, err = alien.Seal(chainReader, b, in)
+			//		case <-chan struct{}:
+			//			//close(stop)
+			//			break out
+			//		}
+			//	}
 			b, err = alien.Seal(chainReader, b, nil)
 			if err != nil {
 

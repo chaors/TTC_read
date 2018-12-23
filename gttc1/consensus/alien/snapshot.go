@@ -298,7 +298,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		// calculate proposal result
 
 		//chaorstest
-		fmt.Printf("calProposal will start...")
+		//fmt.Printf("calProposal will start...")
 		snap.calculateProposalResult(header.Number)
 
 		// check the len of candidate if not candidateNeedPD
@@ -356,7 +356,7 @@ func (s *Snapshot) verifyTallyCnt() error {
 func (s *Snapshot) updateSnapshotByDeclares(declares []Declare, headerNumber *big.Int) {
 
 	//chaorstest
-	fmt.Println("ccc update declares:", declares)
+	//fmt.Println("ccc update declares:", declares)
 
 	for _, declare := range declares {
 		if proposal, ok := s.Proposals[declare.ProposalHash]; ok {
@@ -387,11 +387,11 @@ func (s *Snapshot) updateSnapshotByDeclares(declares []Declare, headerNumber *bi
 func (s *Snapshot) calculateProposalResult(headerNumber *big.Int) {
 
 	//chaorstest
-	fmt.Printf("ccc calProposal startting...\n")
+	//fmt.Printf("ccc calProposal startting...\n")
 	for hashKey, proposal := range s.Proposals {
 		// the result will be calculate at receiverdNumber + vlcnt + 1
 		//chaorstest
-		fmt.Printf("ReceivedNumber:%d ValidationLoopCnt:%d----%d  headerNumber:%d\n", proposal.ReceivedNumber.Uint64(), proposal.ValidationLoopCnt, s.config.MaxSignerCount, headerNumber.Uint64())
+		//fmt.Printf("ReceivedNumber:%d ValidationLoopCnt:%d----%d  headerNumber:%d\n", proposal.ReceivedNumber.Uint64(), proposal.ValidationLoopCnt, s.config.MaxSignerCount, headerNumber.Uint64())
 
 		if proposal.ReceivedNumber.Uint64()+proposal.ValidationLoopCnt*s.config.MaxSignerCount+1 == headerNumber.Uint64() {
 			// calculate the current stake of this proposal
@@ -470,15 +470,15 @@ func (s *Snapshot) updateSnapshotForExpired() {
 	// 票数最多投票最近的那些被投的那些候选者作为签名者  eg：5个投票其中3个过期，最大签名者为4，这个时候过期的投票并不会立即更新其候选者的
 	// 票数(因为如果这样就可能只剩2个候选人签名，但一个轮次还是出4个块)  即当有效投票数大于等于最大签名者数量时才会去执行过期的操作
 	if uint64(len(s.Voters)-len(expiredVotes)) >= s.config.MaxSignerCount {
-		fmt.Printf("ccc Expired...")
+		//fmt.Printf("ccc Expired...")
 		for _, expiredVote := range expiredVotes {
 			s.Tally[expiredVote.Candidate].Sub(s.Tally[expiredVote.Candidate], expiredVote.Stake)
 			if s.Tally[expiredVote.Candidate].Cmp(big.NewInt(0)) == 0 {
 				delete(s.Tally, expiredVote.Candidate)
-				fmt.Printf("ccc delete candidate:%s from voter:%s \n", expiredVote.Candidate.Hex(), expiredVote.Voter.Hex())
+				//fmt.Printf("ccc delete candidate:%s from voter:%s \n", expiredVote.Candidate.Hex(), expiredVote.Voter.Hex())
 			}
 			//
-			fmt.Printf("ccc delete vote:%s \n", expiredVote.Voter.Hex())
+			//fmt.Printf("ccc delete vote:%s \n", expiredVote.Voter.Hex())
 
 			delete(s.Votes, expiredVote.Voter)
 			delete(s.Voters, expiredVote.Voter)
@@ -505,7 +505,7 @@ func (s *Snapshot) updateSnapshotForExpired() {
 func (s *Snapshot) updateSnapshotByConfirmations(confirmations []Confirmation) {
 
 	//chaorstest
-	fmt.Printf("ccc updateSnapshotByConfirmations...")
+	//fmt.Printf("ccc updateSnapshotByConfirmations...")
 	for _, confirmation := range confirmations {
 		_, ok := s.Confirmations[confirmation.BlockNumber.Uint64()]
 		if !ok {
@@ -575,7 +575,7 @@ func (s *Snapshot) updateSnapshotByVotes(votes []Vote, headerNumber *big.Int) {
 func (s *Snapshot) updateSnapshotByMPVotes(votes []Vote) {
 
 	//chaorstest
-	fmt.Printf("updateSnapshotByMPVotes...\n")
+	//fmt.Printf("updateSnapshotByMPVotes...\n")
 
 	for _, txVote := range votes {
 
@@ -603,7 +603,7 @@ func (s *Snapshot) updateSnapshotForPunish(signerMissing []common.Address, heade
 	*/
 	// punish the missing signer
 	// chaorstest
-	fmt.Println("ccc updateSnapshotForPunish", signerMissing)
+	//fmt.Println("ccc updateSnapshotForPunish", signerMissing)
 
 	for _, signerMissing := range signerMissing {
 		fmt.Println("ccc signerPunished before", signerMissing.Hex(), s.Punished[signerMissing])
@@ -642,7 +642,6 @@ func (s *Snapshot) inturn(signer common.Address, headerTime uint64) bool {
 		return false
 	} else if *s.Signers[loopIndex] != signer {
 		return false
-
 	}
 	return true
 }

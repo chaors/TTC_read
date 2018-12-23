@@ -108,6 +108,7 @@ func (self *CpuAgent) mine(work *Work, stop <-chan struct{}) {
 			// unauthorized
 			log.Warn("Block sealing failed", "err", err)
 		}
+		//30
 		self.returnCh <- nil
 	}
 }
