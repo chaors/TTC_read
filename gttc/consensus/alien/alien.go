@@ -856,7 +856,7 @@ func (a *Alien) CalcDifficulty(chain consensus.ChainReader, time uint64, parent 
 func (a *Alien) APIs(chain consensus.ChainReader) []rpc.API {
 	return []rpc.API{{
 		Namespace: "alien",
-		Version:   "0.1",
+		Version:   ufoVersion,
 		Service:   &API{chain: chain, alien: a},
 		Public:    false,
 	}}
@@ -879,12 +879,13 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	for voter, reward := range snap.calculateVoteReward(header.Coinbase, votersReward) {
 		state.AddBalance(voter, reward)
 	}
-	// rewards for the side chain coinbase
-	for scCoinbase, reward := range snap.calculateSCReward() {
-		state.AddBalance(scCoinbase, reward)
-	}
 
 	if config.Alien.IsTrantor(header.Number) {
+		// rewards for the side chain coinbase
+		for scCoinbase, reward := range snap.calculateSCReward(minerReward) {
+			state.AddBalance(scCoinbase, reward)
+			minerReward.Sub(minerReward, reward)
+		}
 		// refund gas for custom txs
 		for sender, gas := range refundGas {
 			state.AddBalance(sender, gas)

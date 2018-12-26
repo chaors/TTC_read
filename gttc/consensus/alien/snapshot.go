@@ -21,6 +21,7 @@ package alien
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/TTCECO/gttc/common"
 	"github.com/TTCECO/gttc/core/types"
 	"github.com/TTCECO/gttc/ethdb"
@@ -401,10 +402,12 @@ func (s *Snapshot) verifyTallyCnt() error {
 }
 
 func (s *Snapshot) updateSnapshotBySetSCCoinbase(scCoinbases []SCSetCoinbase) {
+	fmt.Printf("ccc updateSnapshotBySetSCCoinbase...\n")
 	for _, scc := range scCoinbases {
 		if _, ok := s.SCCoinbase[scc.Signer]; !ok {
 			s.SCCoinbase[scc.Signer] = make(map[common.Hash]common.Address)
 		}
+		fmt.Printf("ccc add coinbase:%v\n------from mcsigner:%v\n", scc.Coinbase.Hex(), scc.Signer.Hex())
 		s.SCCoinbase[scc.Signer][scc.Hash] = scc.Coinbase
 	}
 }
@@ -453,6 +456,7 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 			for _, scConfirm := range record.Record[i] {
 				// loopInfo slice contain number and coinbase address of side chain block,
 				// so the length of loop info must larger than twice of minConfirmedSignerCount .
+				//1???
 				if len(scConfirm.LoopInfo) >= minConfirmedSignerCount*2 {
 					key := strings.Join(scConfirm.LoopInfo, sep)
 					if _, ok := confirmedRecordMap[key]; !ok {
@@ -489,7 +493,7 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 	return confirmedNumber, confirmedCoinbase
 }
 
-func (s *Snapshot) calcuateCurrentBlockReward(currentCount uint64, periodCount uint64) uint64 {
+func (s *Snapshot) calculateCurrentBlockReward(currentCount uint64, periodCount uint64) uint64 {
 	currentRewardPercentage := uint64(0)
 	if periodCount > uint64(scMaxCountPerPeriod) {
 		periodCount = scMaxCountPerPeriod
@@ -523,10 +527,11 @@ func (s *Snapshot) updateSCConfirmation(headerNumber *big.Int) {
 						currentSCCoinbaseCount++
 					}
 
+					fmt.Printf("ccc SCAllReward...\n")
 					if _, ok := s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase]; !ok {
-						s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase] = s.calcuateCurrentBlockReward(currentSCCoinbaseCount, record.CountPerPeriod)
+						s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase] = s.calculateCurrentBlockReward(currentSCCoinbaseCount, record.CountPerPeriod)
 					} else {
-						s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase] += s.calcuateCurrentBlockReward(currentSCCoinbaseCount, record.CountPerPeriod)
+						s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase] += s.calculateCurrentBlockReward(currentSCCoinbaseCount, record.CountPerPeriod)
 					}
 
 					// update lastSCCoinbase
@@ -534,6 +539,7 @@ func (s *Snapshot) updateSCConfirmation(headerNumber *big.Int) {
 				}
 			}
 
+			//1???
 			for i := record.LastConfirmedNumber + 1; i <= confirmedNumber; i++ {
 				if _, ok := s.SCConfirmation[scHash].Record[i]; ok {
 					delete(s.SCConfirmation[scHash].Record, i)
@@ -592,7 +598,9 @@ func (s *Snapshot) updateSnapshotByDeclares(declares []Declare, headerNumber *bi
 func (s *Snapshot) calculateProposalResult(headerNumber *big.Int) {
 
 	for hashKey, proposal := range s.Proposals {
-		// the result will be calculate at receiverdNumber + vlcnt + 1
+
+		fmt.Printf("ccc calculateProposalResult ReceivedNumber:%v-----ValidationLoopCnt:%v---MaxSignerCount:%v-----number:%v\n", proposal.ReceivedNumber, proposal.ValidationLoopCnt, s.config.MaxSignerCount, headerNumber)
+		// the result will be calculate at receiverdNumber + vlcnt +
 		if proposal.ReceivedNumber.Uint64()+proposal.ValidationLoopCnt*s.config.MaxSignerCount+1 == headerNumber.Uint64() {
 			// calculate the current stake of this proposal
 			judegmentStake := big.NewInt(0)
@@ -625,6 +633,7 @@ func (s *Snapshot) calculateProposalResult(headerNumber *big.Int) {
 					minerRewardPerThousand = s.Proposals[hashKey].MinerRewardPerThousand
 
 				case proposalTypeSideChainAdd:
+					fmt.Printf("ccc proposalTypeSideChainAdd ...\n")
 					if _, ok := s.SCConfirmation[proposal.SCHash]; !ok {
 						s.SCConfirmation[proposal.SCHash] = &SCRecord{make(map[uint64][]*SCConfirmation), 0, 0, proposal.SCBlockCountPerPeriod, proposal.SCBlockRewardPerPeriod}
 					}
@@ -647,6 +656,7 @@ func (s *Snapshot) calculateProposalResult(headerNumber *big.Int) {
 
 func (s *Snapshot) updateSnapshotByProposals(proposals []Proposal, headerNumber *big.Int) {
 	for _, proposal := range proposals {
+		fmt.Printf("ccc updateSnapshotByProposals...\n")
 		proposal.ReceivedNumber = new(big.Int).Set(headerNumber)
 		s.Proposals[proposal.Hash] = &proposal
 	}
@@ -874,32 +884,44 @@ func (s *Snapshot) calculateVoteReward(coinbase common.Address, votersReward *bi
 	return rewards
 }
 
-func (s *Snapshot) calculateSCReward() map[common.Address]*big.Int {
+func (s *Snapshot) calculateSCReward(minerReward *big.Int) map[common.Address]*big.Int {
+
+	fmt.Printf("ccc begin calculateSCReward...\n")
 	// rewards for side chain
 	if s.config.IsTrantor(new(big.Int).SetUint64(s.Number)) {
+		// need to deal with sum of record.RewardPerPeriod for all side chain is larger than 100% situation
+		scRewardSum := big.NewInt(0)
+		for _, record := range s.SCConfirmation {
+			scRewardSum.Add(scRewardSum, new(big.Int).SetUint64(record.RewardPerPeriod))
+		}
+		fmt.Printf("ccc scRewardSum%v...\n", scRewardSum)
+		if scRewardSum.Uint64() < 1000 {
+			scRewardSum.SetUint64(1000)
+		}
+
 		rewards := make(map[common.Address]*big.Int)
 		for scHash, scReward := range s.SCAllReward {
 			// check reward for the block number is exist
 			if reward, ok := scReward[s.Number-scRewardDelayLoopCount*s.config.MaxSignerCount]; ok {
 				// check confirm is exist, to get countPerPeriod and rewardPerPeriod
 				if confirmation, ok := s.SCConfirmation[scHash]; ok {
-
-					// todo : need calculate the side chain reward base on RewardPerPeriod(/100) and record.RewardPerPeriod
-					// todo : need to deal with sum of record.RewardPerPeriod for all side chain is larger than 100% situation
+					// calculate the side chain reward base on RewardPerPeriod(/100) and record.RewardPerPeriod
 					for addr, scre := range reward {
+						singleReward := new(big.Int).SetUint64(scre * confirmation.RewardPerPeriod)
+						singleReward.Div(singleReward, scRewardSum)
+						singleReward.Mul(singleReward, minerReward)
+
+						fmt.Printf("ccc calscReward:%v for coinbase:%v\n", addr.Hex(), singleReward)
 						if _, ok := rewards[addr]; ok {
-							rewards[addr].Add(rewards[addr], new(big.Int).SetUint64(scre*confirmation.RewardPerPeriod))
+							rewards[addr].Add(rewards[addr], singleReward)
 						} else {
-							rewards[addr] = new(big.Int).SetUint64(scre * confirmation.RewardPerPeriod)
+							rewards[addr] = singleReward
 						}
 					}
 				}
-
 			}
-
 		}
 		return rewards
-
 	}
 	return nil
 }
