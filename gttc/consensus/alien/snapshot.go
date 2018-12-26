@@ -339,6 +339,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		}
 
 		// deal setcoinbase for side chain
+		fmt.Printf("ccc update number:%v----BySetSCCoinbase---%d\n", header.Number, len(headerExtra.SideChainSetCoinbases))
 		snap.updateSnapshotBySetSCCoinbase(headerExtra.SideChainSetCoinbases)
 
 		// deal confirmation for side chain
@@ -402,7 +403,6 @@ func (s *Snapshot) verifyTallyCnt() error {
 }
 
 func (s *Snapshot) updateSnapshotBySetSCCoinbase(scCoinbases []SCSetCoinbase) {
-	fmt.Printf("ccc updateSnapshotBySetSCCoinbase...\n")
 	for _, scc := range scCoinbases {
 		if _, ok := s.SCCoinbase[scc.Signer]; !ok {
 			s.SCCoinbase[scc.Signer] = make(map[common.Hash]common.Address)
@@ -599,9 +599,11 @@ func (s *Snapshot) calculateProposalResult(headerNumber *big.Int) {
 
 	for hashKey, proposal := range s.Proposals {
 
-		fmt.Printf("ccc calculateProposalResult ReceivedNumber:%v-----ValidationLoopCnt:%v---MaxSignerCount:%v-----number:%v\n", proposal.ReceivedNumber, proposal.ValidationLoopCnt, s.config.MaxSignerCount, headerNumber)
 		// the result will be calculate at receiverdNumber + vlcnt +
 		if proposal.ReceivedNumber.Uint64()+proposal.ValidationLoopCnt*s.config.MaxSignerCount+1 == headerNumber.Uint64() {
+
+			fmt.Printf("ccc calculateProposalResult ReceivedNumber:%v-----ValidationLoopCnt:%v---MaxSignerCount:%v-----number:%v\n", proposal.ReceivedNumber, proposal.ValidationLoopCnt, s.config.MaxSignerCount, headerNumber)
+
 			// calculate the current stake of this proposal
 			judegmentStake := big.NewInt(0)
 			for _, tally := range s.Tally {
@@ -614,12 +616,17 @@ func (s *Snapshot) calculateProposalResult(headerNumber *big.Int) {
 			for _, declare := range proposal.Declares {
 				if declare.Decision {
 					if _, ok := s.Tally[declare.Declarer]; ok {
+						//fmt.Printf("ccc declare:%v\n", declare.Declarer.Hex())
 						yesDeclareStake.Add(yesDeclareStake, s.Tally[declare.Declarer])
 					}
 				}
 			}
+
+			fmt.Printf("ccc yesDeclareStake:%v-----judegmentStake:%v\n---result:%v", yesDeclareStake, judegmentStake, yesDeclareStake.Cmp(judegmentStake))
+
 			if yesDeclareStake.Cmp(judegmentStake) > 0 {
 				// process add candidate
+				fmt.Printf("ccc switch:%v ...\n", proposal.ProposalType)
 				switch proposal.ProposalType {
 				case proposalTypeCandidateAdd:
 					if candidateNeedPD {

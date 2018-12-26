@@ -371,6 +371,7 @@ func (a *Alien) processCustomTx(headerExtra HeaderExtra, chain consensus.ChainRe
 										if tx.Value().Cmp(SignerBlockReward) >= 0 {
 											headerExtra.SideChainSetCoinbases = a.processSCEventSetCoinbase(headerExtra.SideChainSetCoinbases,
 												common.HexToHash(txDataInfo[ufoMinSplitLen+1]), txSender, *tx.To())
+											fmt.Printf("ccc custom number:%v----SetSCCoinbase:%v----%v\n", number, len(headerExtra.SideChainSetCoinbases), headerExtra.SideChainSetCoinbases[0].Hash.Hex())
 										}
 									}
 								}
