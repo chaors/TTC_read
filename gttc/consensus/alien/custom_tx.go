@@ -265,6 +265,7 @@ func encodeHeaderExtra(config *params.AlienConfig, number *big.Int, val HeaderEx
 	default:
 		headerExtra = copyToBeforeTrantor(val)
 	}
+	fmt.Printf("ccc encodeHeaderExtra:%v-----%v\n", config.IsTrantor(number), len(val.SideChainSetCoinbases))
 	return rlp.EncodeToBytes(headerExtra)
 
 }
@@ -352,6 +353,7 @@ func (a *Alien) processCustomTx(headerExtra HeaderExtra, chain consensus.ChainRe
 						} else if txDataInfo[posCategory] == ufoCategorySC {
 							if len(txDataInfo) > ufoMinSplitLen {
 								if txDataInfo[posEventConfirm] == ufoEventConfirm {
+									//_ := []byte(fmt.Sprintf("%s:%s:%s:%s:%s:%d:%d", ufoPrefix, ufoVersion, ufoCategorySC, ufoEventConfirm, scHash.Hex(), headerNumber.Uint64(), headerTime.Uint64()))
 									if len(txDataInfo) > ufoMinSplitLen+3 {
 										number, err := strconv.Atoi(txDataInfo[ufoMinSplitLen+2])
 										if err != nil {

@@ -401,6 +401,17 @@ func (a *Alien) snapshot(chain consensus.ChainReader, number uint64, hash common
 		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
 	}
 
+	//chaorstest
+	//fmt.Printf("ccc lenHeaders:%v\n", len(headers))
+	//if len(headers) > 0 {
+	//	for _, h := range headers {
+	//		headerExtra := HeaderExtra{}
+	//		_ = decodeHeaderExtra(a.config, h.Number, h.Extra[extraVanity:len(h.Extra)-extraSeal], &headerExtra)
+	//		fmt.Printf("ccc sccoinbs:%v------number:%v\n", len(headerExtra.SideChainSetCoinbases), h.Number.Uint64())
+	//	}
+	//}
+	//chaorstest
+
 	snap, err := snap.apply(headers)
 	if err != nil {
 		return nil, err
@@ -707,6 +718,7 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 
 	// calculate votes write into header.extra
 	currentHeaderExtra, refundGas, err := a.processCustomTx(currentHeaderExtra, chain, header, state, txs, receipts)
+	fmt.Printf("Finalize currentHeaderExtra:%v-----%v\n", header.Number.Uint64(), len(currentHeaderExtra.SideChainSetCoinbases))
 
 	if err != nil {
 		return nil, err
@@ -749,6 +761,7 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 		}
 	}
 	// encode header.extra
+	fmt.Printf("ccc headerExtra before encode:%v\n", len(currentHeaderExtra.SideChainSetCoinbases))
 	currentHeaderExtraEnc, err := encodeHeaderExtra(a.config, header.Number, currentHeaderExtra)
 	if err != nil {
 		return nil, err
@@ -767,6 +780,12 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	// No uncle block
 	header.UncleHash = types.CalcUncleHash(nil)
+
+	//chaorstest
+	headerExtra := HeaderExtra{}
+	err = decodeHeaderExtra(a.config, header.Number, header.Extra[extraVanity:len(header.Extra)-extraSeal], &headerExtra)
+	fmt.Printf("ccc headerExtra after encode:%v\n", len(headerExtra.SideChainSetCoinbases))
+	//chaorstest
 
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts), nil
