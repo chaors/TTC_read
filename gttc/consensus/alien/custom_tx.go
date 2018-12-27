@@ -263,9 +263,10 @@ func encodeHeaderExtra(config *params.AlienConfig, number *big.Int, val HeaderEx
 	case config.IsTrantor(number):
 		headerExtra = val
 	default:
+		//headerExtra = val
 		headerExtra = copyToBeforeTrantor(val)
 	}
-	fmt.Printf("ccc encodeHeaderExtra:%v-----%v\n", config.IsTrantor(number), len(val.SideChainSetCoinbases))
+	fmt.Printf("ccc encodeHeaderExtra:%v---%v---%v\n", config.TrantorBlock, number, len(val.SideChainSetCoinbases))
 	return rlp.EncodeToBytes(headerExtra)
 
 }
