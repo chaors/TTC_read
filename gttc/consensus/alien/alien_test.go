@@ -1,6 +1,7 @@
 package alien
 
 import (
+	"fmt"
 	"github.com/TTCECO/gttc/accounts"
 	"github.com/TTCECO/gttc/accounts/keystore"
 	"github.com/TTCECO/gttc/common"
@@ -320,6 +321,109 @@ func TestAlien(t *testing.T)  {
 		//	}
 		//}
 
+	}
+}
+
+func TestRewardBySnap(t *testing.T)  {
+
+	tests := []struct {
+
+	}
+
+	for _, tt := range tests {
+
+		// extend length of extra, so address of CoinBase can keep signature .
+		genesis := &core.Genesis{
+			ExtraData: make([]byte, extraVanity+extraSeal),
+			Timestamp:uint64(time.Now().Unix()),
+		}
+
+		// Create a pristine blockchain with the genesis injected
+		db := ethdb.NewMemDatabase()
+		genesis.Commit(db)
+
+		// Create a new state
+		state, _ := state.New(common.Hash{}, state.NewDatabase(db))
+
+		// Create a chainReader
+		chainReader := &testerChainReader{db:db}
+
+		accountsPool := newTestAccountPool()
+
+		alienCfg := &params.AlienConfig{
+			Period:          3,
+			Epoch:           20,
+			MinVoterBalance: big.NewInt(50),
+			MaxSignerCount:  5,
+			SelfVoteSigners: []common.Address{accountsPool.accounts["A"].Address},
+			GenesisTimestamp:chainReader.GetHeaderByNumber(0).Time.Uint64()+3,
+		}
+
+		// chainCfg
+		chainCfg := &params.ChainConfig{
+			nil,
+			nil,
+			nil,
+			common.Hash{},
+			nil,
+			nil,
+			nil,
+			nil,
+			&params.EthashConfig{},
+			&params.CliqueConfig{},
+			alienCfg,
+		}
+
+		alien := New(alienCfg, db)
+
+		alien.accumulateRewards
+	}
+}
+
+func TestReward(t *testing.T)  {
+
+	s := big.NewInt(5e+18)
+	r := new(big.Int).Set(s)
+	m1 := r.Mul(r, big.NewInt(618))
+	m1 = m1.Div(m1, big.NewInt(1000))
+	m := m1.Uint64()
+	v := s.Sub(s, m1).Uint64()
+
+	tests := []struct {
+		addrNames        []string             // accounts used in this case
+		period           uint64               // default 3
+		epoch            uint64               // default 30000
+		maxSignerCount   uint64               // default 5 for test
+		minVoterBalance  int                  // default 50
+		selfVoters       []testerSelfVoter    //
+		txHeaders        []testerBlockHeader //
+		historyHashes []string
+		result           testerRewardResult
+	}{
+		//balance0 A,B两个自选签名者(A,B)，目前只出了一个块 所以还没轮到b出块 A自己选自己所以奖励都是自己的
+		{
+			addrNames:        []string{"A", "B"},
+			period:           uint64(3),
+			epoch:            uint64(31),
+			maxSignerCount:   uint64(3),
+			minVoterBalance:  50,
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerBlockHeader{
+				{1,[]testerTransaction{}}, // 1 A
+			},
+			historyHashes: []string{"a", "b", "c", "d", "e"},
+			result:testerRewardResult{
+				map[string]*big.Int{
+					"A": CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), //m*1 + v*1*100/100,
+					"B": big.NewInt(0),
+				},
+			},
+		},
+	}
+
+	for _ ,t := range tests {
+
+		fmt.Printf("%v", t)
 	}
 }
 
