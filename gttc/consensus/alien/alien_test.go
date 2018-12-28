@@ -22,6 +22,15 @@ const (
 	veryLightScryptP = 1
 )
 
+type testerBlockHeader struct {
+	number uint64
+	txs []testerTransaction
+}
+
+type testerRewardResult struct {
+	balance map[string]*big.Int
+}
+
 
 func (r *testerChainReader) GetHeader(hash common.Hash, number uint64) *types.Header {
 
@@ -58,10 +67,49 @@ type testAccountPool struct {
 	accounts map[string]*accounts.Account
 }
 
+/*
+string account密码
+  */
 func newTestAccountPool() *testAccountPool {
 	return &testAccountPool{
 		accounts: make(map[string]*accounts.Account),
 	}
+}
+/*
+m	出块个数
+mCount	出块个数
+v	支持的candidate出块个数
+
+*/
+func CalReward(m uint64, mCount uint64, v uint64, vCounts []uint64, bals []uint64, allStakes []uint64) *big.Int {
+
+	//s := make(map[string][]map[uint64]map[uint64]uint64)
+
+	//m*2 + v*200.0/300.0*1 + v*200.0/200.0*1,
+	//[200,200] [300 200] [1,1]
+	m1 := new(big.Int).SetUint64(m)
+	mCount1 := new(big.Int).SetUint64(mCount)
+	v1 := new(big.Int).SetUint64(v)
+
+	//矿工奖励
+	m1.Mul(m1, mCount1)
+	v2 := new(big.Int).Set(v1)
+	//投票奖励
+	for i := 0; i < len(vCounts); i++ {
+
+		v2.Mul(v1, new(big.Int).SetUint64(bals[i]))
+		v2.Div(v2, new(big.Int).SetUint64(allStakes[i]))
+		v3 := big.NewInt(0)
+		for j := 0; j < int(vCounts[i]) ; j++ {
+			v3.Add(v3, v2)
+		}
+		//v2.Mul(v2, new(big.Int).SetUint64(vCounts[i]))
+		m1.Add(m1, v3)
+	}
+	//fmt.Printf("v**/----%v\n", v1)
+	//fmt.Printf("+++----%v\n", m1.Add(m1, v1))
+
+	return m1
 }
 
 //
@@ -83,10 +131,17 @@ alien要测哪些东西：
 	4.time
 */
 
+
 // TODO need to rewrite
 func TestAlien(t *testing.T)  {
 
-	// TODO need to rewrite
+	//s := big.NewInt(5e+18)
+	//r := new(big.Int).Set(s)
+	//m1 := r.Mul(r, big.NewInt(618))
+	//m1 = m1.Div(m1, big.NewInt(1000))
+	//m := m1.Uint64()
+	//v := s.Sub(s, m1).Uint64()
+
 	tests := []struct {
 		AddrNames        []string             // used for accounts password in this case
 		Period         uint64
@@ -94,28 +149,33 @@ func TestAlien(t *testing.T)  {
 		MinVoterBalance *big.Int
 		MaxSignerCount  uint64
 		SelfVoteSigners []testerSelfVoter
-		txHeaders        []testerSingleHeader
+		txHeaders        []testerBlockHeader
+		//result testerRewardResult
 	}{
 		{[]string{"A", "B", "C"},
 			uint64(1),
 			uint64(10),
 			big.NewInt(int64(50)),
 			uint64(3),
-			[]testerSelfVoter{{"B", 100}, {"A", 100}, {"C", 120}},
-			[]testerSingleHeader{
-				{[]testerTransaction{}},
-				{[]testerTransaction{}},
-				{[]testerTransaction{}},
-				//{[]testerTransaction{}},
-				//{[]testerTransaction{}},
-				//{[]testerTransaction{}},
-				//{[]testerTransaction{}},
+			[]testerSelfVoter{{"A", 200}},
+			[]testerBlockHeader{ // BA
+				{1, []testerTransaction{}}, //b
+				//{2,[]testerTransaction{}},//a
+				//{3,[]testerTransaction{}},//b
 			},
+			//testerRewardResult{
+			//	map[string]*big.Int{
+			//		"A": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(200), big.NewInt(1e+18))), //m*1 + v*1*100/100,
+			//		"B": big.NewInt(0),
+			//		"C": big.NewInt(0),
+			//	},
+			//},
 		},
 	}
 
 	for i, tt := range tests{
 
+		//590702
 		//ttc account from AddrNames
 		accountsPool := newTestAccountPool()
 
@@ -247,10 +307,19 @@ func TestAlien(t *testing.T)  {
 				t.Errorf("test%v: failed to VerifyHeader: %v", i, err)
 			}
 		}
+
+		////verify 总balance
+		//balance := state.GetBalance(accountsPool.accounts["A"].Address)
+		//fmt.Println("check balance", balance)
+		//
+		//for _, name := range tt.AddrNames {
+		//
+		//	if state.GetBalance(accountsPool.accounts[name].Address).Cmp(tt.result.balance[name]) != 0 {
+		//
+		//		t.Errorf("balance%d tset fail:%s balance:%v in BLC dismatch %v in test result ", i, name, state.GetBalance(accountsPool.accounts[name].Address), tt.result.balance[name])
+		//	}
+		//}
+
 	}
 }
 
-func TestReward(t *testing.T) {
-
-
-}

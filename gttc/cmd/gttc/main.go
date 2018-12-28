@@ -306,6 +306,11 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		ethereum.BlockChain().Config().Alien.Period = uint64(mcPeriod)
 		ethereum.BlockChain().Config().Alien.MCRPCClient = client
 	}
+	////chaorsttest
+	//else {
+	//	fmt.Printf("ccc no sideChain...\n")
+	//}
+	////chaorsttest
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {

@@ -161,7 +161,7 @@ func CalReward(m uint64, mCount uint64, v uint64, vCounts []uint64, bals []uint6
 	}
 	//fmt.Printf("v**/----%v\n", v1)
 	//fmt.Printf("+++----%v\n", m1.Add(m1, v1))
-
+	
 	return m1
 }
 

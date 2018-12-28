@@ -918,7 +918,7 @@ func (s *Snapshot) calculateSCReward(minerReward *big.Int) map[common.Address]*b
 						singleReward.Div(singleReward, scRewardSum)
 						singleReward.Mul(singleReward, minerReward)
 
-						fmt.Printf("ccc calscReward:%v for coinbase:%v\n", addr.Hex(), singleReward)
+						fmt.Printf("ccc calReward:%v for coinbase:%v\n", addr.Hex(), singleReward)
 						if _, ok := rewards[addr]; ok {
 							rewards[addr].Add(rewards[addr], singleReward)
 						} else {
