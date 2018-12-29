@@ -32,6 +32,11 @@ type testerRewardResult struct {
 	balance map[string]*big.Int
 }
 
+type testerProposal struct {
+	typeOfProposal string
+	countOfAgree []string
+}
+
 
 func (r *testerChainReader) GetHeader(hash common.Hash, number uint64) *types.Header {
 
@@ -223,7 +228,6 @@ func TestAlien(t *testing.T)  {
 		}
 
 		alien := New(alienCfg, db)
-
 		currentHeaderExtra := HeaderExtra{}
 		signer := common.Address{}
 
@@ -307,6 +311,12 @@ func TestAlien(t *testing.T)  {
 
 				t.Errorf("test%v: failed to VerifyHeader: %v", i, err)
 			}
+
+			err = alien.VerifySeal(chainReader, b.Header())
+			if err != nil {
+
+				t.Errorf("test%v: failed to VerifySeal: %v", i, err)
+			}
 		}
 
 		////verify 总balance
@@ -324,9 +334,176 @@ func TestAlien(t *testing.T)  {
 	}
 }
 
-func TestRewardBySnap(t *testing.T)  {
+func TestAccumulateRewards(t *testing.T)  {
+
+	s := big.NewInt(5e+18)
+	r := new(big.Int).Set(s)
+	m1 := r.Mul(r, big.NewInt(618))
+	m1 = m1.Div(m1, big.NewInt(1000))
+	m := m1.Uint64()
+	v := s.Sub(s, m1).Uint64()
 
 	tests := []struct {
+		addNames	[]string
+		number	uint64
+		coinBase	string
+		votes	[]testerVote
+		proposals []testerProposal
+		selfVoters []testerSelfVoter
+		result []map[string]*big.Int
+	}{
+		//case0 A的选票全部来自A自己，故奖励被全部属于A
+		{
+			addNames:[]string{"A", "B", "C"},
+			number:3,
+			coinBase:string("A"),
+			votes:[]testerVote{
+				{"A", "A", 100},
+			},
+			proposals:[]testerProposal{},
+			selfVoters:[]testerSelfVoter{{"A", 100}, {"B", 100}, {"C", 160}},
+
+			result: []map[string]*big.Int{
+				{"A":CalReward(m,1, v, []uint64{1}, []uint64{100}, []uint64{100})},
+				{"B":big.NewInt(0)},
+				{"C":big.NewInt(0)},
+			},
+		},
+
+		//case B的投票来自A,B,C 因此，B，C会拿到相应投票奖励 投票数越多奖励越多
+		{
+			addNames:[]string{"A", "B", "C"},
+			number:3,
+			coinBase:string("B"),
+			votes:[]testerVote{
+				{"A", "B", 150},
+				{"B", "B", 100},
+				{"C", "B", 200},
+			},
+			proposals:[]testerProposal{},
+			selfVoters:[]testerSelfVoter{{"A", 100}, {"B", 100}, {"C", 160}},
+
+			result: []map[string]*big.Int{
+				{"A":CalReward(m,0, v, []uint64{1}, []uint64{150}, []uint64{450})},
+				{"B":CalReward(m,1, v, []uint64{1}, []uint64{100}, []uint64{450})},
+				{"C":CalReward(m,0, v, []uint64{1}, []uint64{200}, []uint64{450})},
+			},
+		},
+
+		//case2 奖励产生衰减
+		{
+			addNames:[]string{"A", "B", "C"},
+			number:24*60*60*365/3+2,  //逐年减半
+			coinBase:string("A"),
+			votes:[]testerVote{
+				{"A", "A", 100},
+			},
+			proposals:[]testerProposal{},
+			selfVoters:[]testerSelfVoter{{"A", 100}, {"B", 100}, {"C", 160}},
+
+			result: []map[string]*big.Int{
+				{"A":CalReward(m,1, v, []uint64{1}, []uint64{100}, []uint64{100})},
+				{"B":big.NewInt(0)},
+				{"C":big.NewInt(0)},
+			},
+		},
+	}
+
+
+	for i, tt := range tests {
+
+		fmt.Printf("%v", tt.number)
+
+		//账户池
+		accountsPool := newTestAccountPool()
+		_, ks := tmpKeyStore(t, true)
+
+		for _, name := range tt.addNames {
+
+			account, _ := ks.NewAccount(name)
+			accountsPool.accounts[name] = &account
+		}
+
+		genesis := &core.Genesis{
+			ExtraData: make([]byte, extraVanity+extraSeal),
+		}
+
+		// Create a pristine blockchain with the genesis injected
+		db := ethdb.NewMemDatabase()
+		genesis.Commit(db)
+
+		//state
+		state, _ := state.New(common.Hash{}, state.NewDatabase(db))
+
+		var currentSigners []common.Address
+		for _, selfVoter := range tt.selfVoters {
+			currentSigners = append(currentSigners, accountsPool.accounts[selfVoter.voter].Address)
+		}
+		alienCfg := &params.AlienConfig{
+			Period:          uint64(3),
+			Epoch:           uint64(10),
+			MinVoterBalance: big.NewInt(int64(50)),
+			MaxSignerCount:  uint64(3),
+			SelfVoteSigners: currentSigners,  //这里实际指的是当前的签名者
+		}
+
+		alien := New(alienCfg, db)
+
+		// chainCfg
+		chainCfg := &params.ChainConfig{
+			nil,
+			nil,
+			nil,
+			common.Hash{},
+			nil,
+			nil,
+			nil,
+			nil,
+			&params.EthashConfig{},
+			&params.CliqueConfig{},
+			alienCfg,
+		}
+
+		header := &types.Header{
+			Number:   new(big.Int).SetUint64(tt.number),
+			Time:     big.NewInt(time.Now().Unix()),
+			Coinbase: accountsPool.accounts[tt.coinBase].Address,
+		}
+
+		votes := []*Vote{}
+		for _, vote := range tt.votes {
+
+			snapVote := Vote{accountsPool.accounts[vote.voter].Address, accountsPool.accounts[vote.candidate].Address, big.NewInt(int64(vote.stake))}
+			votes = append(votes, &snapVote)
+		}
+
+		snap := newSnapshot(alien.config, alien.signatures, header.Hash(), votes, 2)
+
+		//test
+		accumulateRewards(chainCfg, state, header, snap, RefundGas{})
+
+		//verify
+		for _, result := range tt.result  {
+			for k, v := range result {
+				balance := state.GetBalance(accountsPool.accounts[k].Address)
+				if balance.Cmp(v) != 0{
+					t.Errorf("balance%d tset fail:%s balance:%v in BLC dismatch %v in test result ", i, k, balance, v)
+				}
+			}
+		}
+	}
+
+
+
+/*
+	tests := []struct {
+		LCRS     		uint64
+		Period          uint64
+		Number          uint64
+		Signers         []*string
+		Votes           map[string]*Vote
+		Proposals       map[common.Hash]*Proposal
+	}{
 
 	}
 
@@ -376,8 +553,9 @@ func TestRewardBySnap(t *testing.T)  {
 
 		alien := New(alienCfg, db)
 
-		alien.accumulateRewards
+		//alien.accumulateRewards
 	}
+*/
 }
 
 func TestReward(t *testing.T)  {

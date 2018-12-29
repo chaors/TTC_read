@@ -913,7 +913,6 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	}
 	// rewards for the miner
 	state.AddBalance(header.Coinbase, minerReward)
-
 }
 
 // Get the signer missing from last signer till header.Coinbase

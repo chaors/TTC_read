@@ -205,6 +205,10 @@ func (a *AlienConfig) String() string {
 	return "alien"
 }
 
+// 侧链哈希值从哪读出来的  parentHash即是侧链哈希
+// TrantorBlock 有赋值的地方  启服务的地方好好看看
+// 1把主链和侧链都跑起来，2能发奖励 尝试侧链某个节点停了
+
 // IsTrantor returns whether num is either equal to the Trantor block or greater.
 func (a *AlienConfig) IsTrantor(num *big.Int) bool {
 	return isForked(a.TrantorBlock, num)
