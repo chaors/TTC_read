@@ -492,49 +492,87 @@ func TestAccumulateRewards(t *testing.T)  {
 			}
 		}
 	}
-
-
-
-/*
-	tests := []struct {
-		LCRS     		uint64
-		Period          uint64
-		Number          uint64
-		Signers         []*string
-		Votes           map[string]*Vote
-		Proposals       map[common.Hash]*Proposal
-	}{
-
 	}
 
-	for _, tt := range tests {
+func TestReward(t *testing.T)  {
 
-		// extend length of extra, so address of CoinBase can keep signature .
+	s := big.NewInt(5e+18)
+	r := new(big.Int).Set(s)
+	m1 := r.Mul(r, big.NewInt(618))
+	m1 = m1.Div(m1, big.NewInt(1000))
+	m := m1.Uint64()
+	v := s.Sub(s, m1).Uint64()
+
+	tests := []struct {
+		addrNames        []string
+		selfVoters       []testerSelfVoter
+		txHeaders        []testerBlockHeader
+		historyHashes []string
+		result           testerRewardResult
+	}{
+		//case 0:balance0 A,B两个自选签名者(A,B)，目前只出了一个块 所以还没轮到b出块 A自己选自己所以奖励都是自己的
+		{
+			addrNames:        []string{"A", "B"},
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerBlockHeader{
+				{1,[]testerTransaction{}}, // 1 A
+			},
+			historyHashes: []string{"a", "b", "c", "d", "e"},
+			result:testerRewardResult{
+				map[string]*big.Int{
+					"A": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(100), big.NewInt(1e18))), //m*1 + v*1*100/100,
+					"B": big.NewInt(0).Add(big.NewInt(0), big.NewInt(0).Mul(big.NewInt(200), big.NewInt(1e+18))),
+				},
+			},
+		},
+	}
+
+	for i ,tt := range tests {
+
+		fmt.Printf("%v", t)
+
+		//账户池
+		accountsPool := newTestAccountPool()
+		_, ks := tmpKeyStore(t, true)
+
+		for _, name := range tt.addrNames {
+
+			account, _ := ks.NewAccount(name)
+			accountsPool.accounts[name] = &account
+			ks.Unlock(account, name)
+		}
+
 		genesis := &core.Genesis{
 			ExtraData: make([]byte, extraVanity+extraSeal),
-			Timestamp:uint64(time.Now().Unix()),
 		}
 
-		// Create a pristine blockchain with the genesis injected
 		db := ethdb.NewMemDatabase()
 		genesis.Commit(db)
-
-		// Create a new state
+		//state
 		state, _ := state.New(common.Hash{}, state.NewDatabase(db))
 
-		// Create a chainReader
-		chainReader := &testerChainReader{db:db}
-
-		accountsPool := newTestAccountPool()
-
+		var snap *Snapshot
+		var genesisVotes []*Vote
+		var selfVoteSigners []common.Address
+		for _, voter := range tt.selfVoters {
+			vote := &Vote{
+				Voter:     accountsPool.accounts[voter.voter].Address,
+				Candidate: accountsPool.accounts[voter.voter].Address,
+				Stake:     big.NewInt(int64(voter.balance)),
+			}
+			genesisVotes = append(genesisVotes, vote)
+			selfVoteSigners = append(selfVoteSigners, vote.Candidate)
+			state.AddBalance(vote.Candidate, vote.Stake.Mul(vote.Stake, big.NewInt(1e+18)))
+			}
+		// Create new alien
 		alienCfg := &params.AlienConfig{
-			Period:          3,
-			Epoch:           20,
-			MinVoterBalance: big.NewInt(50),
-			MaxSignerCount:  5,
-			SelfVoteSigners: []common.Address{accountsPool.accounts["A"].Address},
-			GenesisTimestamp:chainReader.GetHeaderByNumber(0).Time.Uint64()+3,
+			Period:          uint64(3),
+			Epoch:           uint64(10),
+			MinVoterBalance: big.NewInt(100),
+			MaxSignerCount:  uint64(3),
+			SelfVoteSigners: selfVoteSigners,
 		}
+		alien := New(alienCfg, db)
 
 		// chainCfg
 		chainCfg := &params.ChainConfig{
@@ -551,57 +589,161 @@ func TestAccumulateRewards(t *testing.T)  {
 			alienCfg,
 		}
 
-		alien := New(alienCfg, db)
+		headers := make([]*types.Header, len(tt.txHeaders))
+		for j, header := range tt.txHeaders {
 
-		//alien.accumulateRewards
-	}
-*/
-}
+			var currentBlockVotes []Vote
+			var currentBlockProposals []Proposal
+			var currentBlockDeclares []Declare
+			var modifyPredecessorVotes []Vote
+			for _, trans := range header.txs {
+				if trans.isVote {
+					if uint64(trans.balance) >= alienCfg.MinVoterBalance.Uint64() && (!candidateNeedPD || snap.isCandidate(accountsPool.accounts[trans.to].Address)) {
+						// vote event
+						currentBlockVotes = append(currentBlockVotes, Vote{
+							Voter:     accountsPool.accounts[trans.from].Address,
+							Candidate: accountsPool.accounts[trans.to].Address,
+							Stake:     big.NewInt(int64(trans.balance)),
+						})
+					}
+				} else if trans.isProposal {
+					minerRewardPT := minerRewardPerThousand
+					if trans.minerRewardPerT != 0 {
+						minerRewardPT = trans.minerRewardPerT
+					}
+					if snap.isCandidate(accountsPool.accounts[trans.from].Address) {
+						currentBlockProposals = append(currentBlockProposals, Proposal{
+							Hash:                   common.HexToHash(trans.txHash),
+							ValidationLoopCnt:      uint64(1),
+							ProposalType:           trans.proposalType,
+							Proposer:               accountsPool.accounts[trans.from].Address,
+							Candidate:              accountsPool.accounts[trans.candidate].Address,
+							MinerRewardPerThousand: minerRewardPT,
+							Declares:               []*Declare{},
+							ReceivedNumber:         big.NewInt(int64(j)),
+						})
+					}
+				} else if trans.isDeclare {
+					if snap.isCandidate(accountsPool.accounts[trans.from].Address) {
 
-func TestReward(t *testing.T)  {
+						currentBlockDeclares = append(currentBlockDeclares, Declare{
+							ProposalHash: common.HexToHash(trans.txHash),
+							Declarer:     accountsPool.accounts[trans.from].Address,
+							Decision:     trans.decision,
+						})
 
-	s := big.NewInt(5e+18)
-	r := new(big.Int).Set(s)
-	m1 := r.Mul(r, big.NewInt(618))
-	m1 = m1.Div(m1, big.NewInt(1000))
-	m := m1.Uint64()
-	v := s.Sub(s, m1).Uint64()
+					}
+				} else {
+					modifyPredecessorVotes = append(modifyPredecessorVotes, Vote{
+						Voter: accountsPool.accounts[trans.from].Address,
+						Stake: big.NewInt(int64(trans.balance)),
+					})
+				}
+			}
+			currentHeaderExtra := HeaderExtra{}
+			signer := common.Address{}
 
-	tests := []struct {
-		addrNames        []string             // accounts used in this case
-		period           uint64               // default 3
-		epoch            uint64               // default 30000
-		maxSignerCount   uint64               // default 5 for test
-		minVoterBalance  int                  // default 50
-		selfVoters       []testerSelfVoter    //
-		txHeaders        []testerBlockHeader //
-		historyHashes []string
-		result           testerRewardResult
-	}{
-		//balance0 A,B两个自选签名者(A,B)，目前只出了一个块 所以还没轮到b出块 A自己选自己所以奖励都是自己的
-		{
-			addrNames:        []string{"A", "B"},
-			period:           uint64(3),
-			epoch:            uint64(31),
-			maxSignerCount:   uint64(3),
-			minVoterBalance:  50,
-			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
-			txHeaders: []testerBlockHeader{
-				{1,[]testerTransaction{}}, // 1 A
-			},
-			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), //m*1 + v*1*100/100,
-					"B": big.NewInt(0),
-				},
-			},
-		},
-	}
+			// (j==0) means (header.Number==1)
+			if j == 0 {
+				for k := 0; k < int(alienCfg.MaxSignerCount); k++ {
+					currentHeaderExtra.SignerQueue = append(currentHeaderExtra.SignerQueue, selfVoteSigners[k%len(selfVoteSigners)])
+				}
+				currentHeaderExtra.LoopStartTime = alienCfg.GenesisTimestamp // here should be parent genesisTimestamp
+				signer = selfVoteSigners[0]
 
-	for _ ,t := range tests {
+			} else {
+				// decode parent header.extra
+				rlp.DecodeBytes(headers[j-1].Extra[extraVanity:len(headers[j-1].Extra)-extraSeal], &currentHeaderExtra)
+				//fmt.Printf("ccc signer get:j---%d======maxSig----%d\n SignerQueue:%v", j, tt.maxSignerCount, currentHeaderExtra.SignerQueue)
+				signer = currentHeaderExtra.SignerQueue[uint64(j)%alienCfg.MaxSignerCount]
+				// means header.Number % tt.maxSignerCount == 0
+				if (j+1)%int(alienCfg.MaxSignerCount) == 0 {
+					snap, err := alien.snapshot(&testerChainReader{db: db}, headers[j-1].Number.Uint64(), headers[j-1].Hash(), headers, nil, uint64(1))
+					if err != nil {
+						t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
+						continue
+					}
 
-		fmt.Printf("%v", t)
+					currentHeaderExtra.SignerQueue = []common.Address{}
+					newSignerQueue, err := snap.createSignerQueue()
+					if err != nil {
+						t.Errorf("test %d: failed to create signer queue: %v", i, err)
+					}
+
+					currentHeaderExtra.SignerQueue = newSignerQueue
+
+					currentHeaderExtra.LoopStartTime = currentHeaderExtra.LoopStartTime + alienCfg.Period*alienCfg.MaxSignerCount
+				} else {
+
+				}
+			}
+
+			currentHeaderExtra.CurrentBlockVotes = currentBlockVotes
+			currentHeaderExtra.ModifyPredecessorVotes = modifyPredecessorVotes
+			currentHeaderExtra.CurrentBlockProposals = currentBlockProposals
+			currentHeaderExtra.CurrentBlockDeclares = currentBlockDeclares
+			currentHeaderExtraEnc, err := encodeHeaderExtra(alienCfg, big.NewInt(int64(j)), currentHeaderExtra)
+			if err != nil {
+				t.Errorf("test %d: failed to rlp encode to bytes: %v", i, err)
+				continue
+			}
+			// Create the genesis block with the initial set of signers
+			ExtraData := make([]byte, extraVanity+len(currentHeaderExtraEnc)+extraSeal)
+			copy(ExtraData[extraVanity:], currentHeaderExtraEnc)
+
+			headers[j] = &types.Header{
+				Number:   big.NewInt(int64(j) + 1),
+				Time:     big.NewInt((int64(j)+1)*int64(defaultBlockPeriod) - 1),
+				Coinbase: signer,
+				Extra:    ExtraData,
+			}
+			if j > 0 {
+				headers[j].ParentHash = headers[j-1].Hash()
+			}
+			//accounts.sign(headers[j], accounts.name(signer))
+			//var account accounts.Account
+			//for _, name := range tt.addrNames {
+			//	if accountsPool.accounts[name].Address == signer {
+			//		account = *accountsPool.accounts[name]
+			//		break
+			//	}
+			//}
+			//sig, _ := ks.SignHash(account, sigHash(headers[j]).Bytes())
+			sig, err := ks.SignHash(accounts.Account{Address: signer}, sigHash(headers[j]).Bytes())
+			copy(headers[j].Extra[len(headers[j].Extra)-65:], sig)
+
+			// Pass all the headers through alien and ensure tallying succeeds
+			snap, err = alien.snapshot(&testerChainReader{db: db}, headers[j].Number.Uint64(), headers[j].Hash(), headers[:j+1], genesisVotes, uint64(1))
+			genesisVotes = []*Vote{}
+			if err != nil {
+				t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
+				continue
+			}
+
+			//reward
+			accumulateRewards(chainCfg, state, headers[j], snap, nil)
+
+			// 构造historyHash
+			for _, string := range tt.historyHashes {
+
+				var hash common.Hash
+				hash.SetString(string)
+				snap.HistoryHash = append(snap.HistoryHash[1:len(snap.HistoryHash)], hash)
+				//snap.HistoryHash = append(snap.HistoryHash, hash)
+				snap.Hash = hash
+			}
+		}
+
+		balance := state.GetBalance(accountsPool.accounts["A"].Address)
+		fmt.Println("check balance", balance.Uint64())
+		//fmt.Println("check balance", balance.Div(balance, new(big.Int).SetUint64(1e+18)))
+
+		for _, name := range tt.addrNames {
+			if state.GetBalance(accountsPool.accounts[name].Address).Cmp(tt.result.balance[name]) != 0{
+				t.Errorf("balance%d tset fail:%s balance:%v in BLC dismatch %v in test result ", i, name, state.GetBalance(accountsPool.accounts[name].Address), tt.result.balance[name])
+			}
+		}
+
 	}
 }
 

@@ -339,7 +339,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		}
 
 		// deal setcoinbase for side chain
-		fmt.Printf("ccc update number:%v----BySetSCCoinbase---%d\n", header.Number, len(headerExtra.SideChainSetCoinbases))
+		//fmt.Printf("ccc update number:%v----BySetSCCoinbase---%d\n", header.Number, len(headerExtra.SideChainSetCoinbases))
 		snap.updateSnapshotBySetSCCoinbase(headerExtra.SideChainSetCoinbases)
 
 		// deal confirmation for side chain
@@ -456,7 +456,7 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 			for _, scConfirm := range record.Record[i] {
 				// loopInfo slice contain number and coinbase address of side chain block,
 				// so the length of loop info must larger than twice of minConfirmedSignerCount .
-				//1???
+				//2/3确认
 				if len(scConfirm.LoopInfo) >= minConfirmedSignerCount*2 {
 					key := strings.Join(scConfirm.LoopInfo, sep)
 					if _, ok := confirmedRecordMap[key]; !ok {
@@ -901,7 +901,7 @@ func (s *Snapshot) calculateSCReward(minerReward *big.Int) map[common.Address]*b
 		for _, record := range s.SCConfirmation {
 			scRewardSum.Add(scRewardSum, new(big.Int).SetUint64(record.RewardPerPeriod))
 		}
-		fmt.Printf("ccc scRewardSum%v...\n", scRewardSum)
+		fmt.Printf("ccc scRewardSum--%v...\n", scRewardSum)
 		if scRewardSum.Uint64() < 1000 {
 			scRewardSum.SetUint64(1000)
 		}
@@ -914,6 +914,7 @@ func (s *Snapshot) calculateSCReward(minerReward *big.Int) map[common.Address]*b
 				if confirmation, ok := s.SCConfirmation[scHash]; ok {
 					// calculate the side chain reward base on RewardPerPeriod(/100) and record.RewardPerPeriod
 					for addr, scre := range reward {
+						//1???
 						singleReward := new(big.Int).SetUint64(scre * confirmation.RewardPerPeriod)
 						singleReward.Div(singleReward, scRewardSum)
 						singleReward.Mul(singleReward, minerReward)

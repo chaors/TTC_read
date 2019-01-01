@@ -592,6 +592,7 @@ func (a *Alien) getLastLoopInfo(chain consensus.ChainReader, header *types.Heade
 		inLastLoop := false
 		extraTime := (header.Time.Uint64() - mcLoopStartTime) % (mcPeriod * mcSignerLength)
 		for i := uint64(0); i < a.config.MaxSignerCount*2*(mcPeriod/a.config.Period); i++ {
+			//2???
 			header = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 			newTime := (header.Time.Uint64() - mcLoopStartTime) % (mcPeriod * mcSignerLength)
 			if newTime > extraTime {
@@ -718,7 +719,7 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 
 	// calculate votes write into header.extra
 	currentHeaderExtra, refundGas, err := a.processCustomTx(currentHeaderExtra, chain, header, state, txs, receipts)
-	fmt.Printf("Finalize currentHeaderExtra:%v-----%v\n", header.Number.Uint64(), len(currentHeaderExtra.SideChainSetCoinbases))
+	//fmt.Printf("Finalize currentHeaderExtra:%v-----%v-----%v\n", header.Number.Uint64(), len(currentHeaderExtra.SideChainSetCoinbases), chain.Config().ByzantiumBlock)
 
 	if err != nil {
 		return nil, err
@@ -761,7 +762,7 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 		}
 	}
 	// encode header.extra
-	fmt.Printf("ccc headerExtra before encode:%v\n", len(currentHeaderExtra.SideChainSetCoinbases))
+	//fmt.Printf("ccc headerExtra before encode:%v\n", len(currentHeaderExtra.SideChainSetCoinbases))
 	currentHeaderExtraEnc, err := encodeHeaderExtra(a.config, header.Number, currentHeaderExtra)
 	if err != nil {
 		return nil, err
