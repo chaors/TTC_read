@@ -565,6 +565,7 @@ func (a *Alien) Prepare(chain consensus.ChainReader, header *types.Header) error
 }
 
 func (a *Alien) mcInturn(chain consensus.ChainReader, signer common.Address, headerTime uint64) bool {
+	fmt.Printf("ccc mcInturn:%v\n", chain.Config().Alien.SideChain)
 	if chain.Config().Alien.SideChain {
 		ms, err := a.getMainChainSnapshotByTime(chain, headerTime, chain.GetHeaderByNumber(0).ParentHash)
 		if err != nil || len(ms.Signers) == 0 || ms.Period == 0 {
@@ -573,6 +574,9 @@ func (a *Alien) mcInturn(chain consensus.ChainReader, signer common.Address, hea
 		}
 		// calculate the coinbase by loopStartTime & signers slice
 		loopIndex := int((headerTime-ms.LoopStartTime)/ms.Period) % len(ms.Signers)
+
+		fmt.Printf("ccc mcInturn loopIndex:%v-----%v\n-------%v", loopIndex, signer.Hex(), ms.Signers[loopIndex].Hex())
+
 		if loopIndex >= len(ms.Signers) {
 			return false
 		} else if *ms.Signers[loopIndex] != signer {
