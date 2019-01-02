@@ -785,7 +785,7 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 	//chaorstest
 	headerExtra := HeaderExtra{}
 	err = decodeHeaderExtra(a.config, header.Number, header.Extra[extraVanity:len(header.Extra)-extraSeal], &headerExtra)
-	fmt.Printf("ccc headerExtra after encode:%v\n", len(headerExtra.SideChainSetCoinbases))
+	//fmt.Printf("ccc headerExtra after encode:%v\n", len(headerExtra.SideChainSetCoinbases))
 	//chaorstest
 
 	// Assemble and return the final block for sealing
@@ -806,6 +806,8 @@ func (a *Alien) Authorize(signer common.Address, signFn SignerFn, signTxFn SignT
 // the local signing credentials.
 func (a *Alien) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	header := block.Header()
+
+	fmt.Printf("ccc start Sealing...\n")
 
 	// Sealing the genesis block is not supported
 	number := header.Number.Uint64()

@@ -371,12 +371,16 @@ func (self *worker) wait() {
 
 // push sends a new work task to currently live miner agents.
 func (self *worker) push(work *Work) {
+	fmt.Printf("ccc push work---%v", self.mining)
 	if atomic.LoadInt32(&self.mining) != 1 {
 		return
 	}
+
 	for agent := range self.agents {
 		atomic.AddInt32(&self.atWork, 1)
+		fmt.Printf("ccc start agent.Work...\n")
 		if ch := agent.Work(); ch != nil {
+			fmt.Printf("ccc agent.Working...\n")
 			ch <- work
 		}
 	}
@@ -495,10 +499,13 @@ func (self *worker) commitNewWork() {
 		delete(self.possibleUncles, hash)
 	}
 	// Create the new block to seal with the consensus engine
+	//fmt.Printf("ccc start Finalize...\n")
 	if work.Block, err = self.engine.Finalize(self.chain, header, work.state, work.txs, uncles, work.receipts); err != nil {
 		log.Error("Failed to finalize block for sealing", "err", err)
 		return
 	}
+	//fmt.Printf("ccc end Finalize---%v---%v\n", work.Block.Number(), work.Block.Coinbase().Hex())
+
 	// We only care about logging if we're actually mining.
 	if atomic.LoadInt32(&self.mining) == 1 {
 		log.Info("Commit new mining work", "number", work.Block.Number(), "txs", work.tcount, "uncles", len(uncles), "elapsed", common.PrettyDuration(time.Since(tstart)))

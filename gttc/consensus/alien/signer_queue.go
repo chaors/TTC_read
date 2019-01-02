@@ -20,7 +20,6 @@ package alien
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 	"sort"
 
@@ -123,12 +122,12 @@ func (s *Snapshot) createSignerQueue() ([]common.Address, error) {
 			queueLength = len(tallySlice)
 		}
 
-		//chaorstest
-		for _, hash := range s.HistoryHash {
-
-			fmt.Printf("ccc HistoryHash:%v\n", hash.Hex())
-		}
-		//chaorstest
+		////chaorstest
+		//for _, hash := range s.HistoryHash {
+		//
+		//	fmt.Printf("ccc HistoryHash:%v\n", hash.Hex())
+		//}
+		////chaorstest
 
 		if queueLength == defaultOfficialMaxSignerCount && len(tallySlice) > defaultOfficialThirdLevelCount {
 			for i, tallyItem := range tallySlice[:defaultOfficialFirstLevelCount] {

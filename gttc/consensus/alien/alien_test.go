@@ -137,6 +137,36 @@ alien要测哪些东西：
 	4.time
 */
 
+func calMinerRewardPerBlock(number uint64) *big.Int {
+
+	s := big.NewInt(5e+18)
+	blockNumPerYear := secondsPerYear / 3
+	yearCount := number / uint64(blockNumPerYear)
+	blockReward := new(big.Int).Rsh(s, uint(yearCount))
+
+	minerReward := new(big.Int).Set(blockReward)
+	minerReward.Mul(minerReward, big.NewInt(int64(minerRewardPerThousand)))
+	minerReward.Div(minerReward, big.NewInt(1000))
+
+	return minerReward
+}
+
+func calVoteRewardPerBlock(number uint64) *big.Int {
+
+	s := big.NewInt(5e+18)
+	blockNumPerYear := secondsPerYear / 3
+	yearCount := number / uint64(blockNumPerYear)
+	blockReward := new(big.Int).Rsh(s, uint(yearCount))
+
+	minerReward := new(big.Int).Set(blockReward)
+	minerReward.Mul(minerReward, big.NewInt(int64(minerRewardPerThousand)))
+	minerReward.Div(minerReward, big.NewInt(1000))
+
+	votersReward := big.NewInt(0).Sub(blockReward, minerReward)
+
+	return votersReward
+}
+
 
 // TODO need to rewrite
 func TestAlien(t *testing.T)  {
@@ -393,7 +423,7 @@ func TestAccumulateRewards(t *testing.T)  {
 		//case2 奖励产生衰减
 		{
 			addNames:[]string{"A", "B", "C"},
-			number:24*60*60*365/3+2,  //逐年减半
+			number:24*60*60*365/3+33,  //逐年减半
 			coinBase:string("A"),
 			votes:[]testerVote{
 				{"A", "A", 100},
@@ -402,7 +432,7 @@ func TestAccumulateRewards(t *testing.T)  {
 			selfVoters:[]testerSelfVoter{{"A", 100}, {"B", 100}, {"C", 160}},
 
 			result: []map[string]*big.Int{
-				{"A":CalReward(m,1, v, []uint64{1}, []uint64{100}, []uint64{100})},
+				{"A":CalReward(calMinerRewardPerBlock(uint64(24*60*60*365/3+33)).Uint64(),1, calVoteRewardPerBlock(uint64(24*60*60*365/3+33)).Uint64(), []uint64{1}, []uint64{100}, []uint64{100})},
 				{"B":big.NewInt(0)},
 				{"C":big.NewInt(0)},
 			},
@@ -510,18 +540,76 @@ func TestReward(t *testing.T)  {
 		historyHashes []string
 		result           testerRewardResult
 	}{
-		//case 0:balance0 A,B两个自选签名者(A,B)，目前只出了一个块 所以还没轮到b出块 A自己选自己所以奖励都是自己的
+		//case 0:balance0 A,B两个自选签名者(A,B)，目前只出了2个块 所以还没轮到b出块 A自己选自己所以奖励都是自己的
 		{
-			addrNames:        []string{"A", "B"},
+			addrNames:        []string{"A", "B", "C"},
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
+				{2,[]testerTransaction{}}, // B
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
 			result:testerRewardResult{
 				map[string]*big.Int{
-					"A": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(100), big.NewInt(1e18))), //m*1 + v*1*100/100,
-					"B": big.NewInt(0).Add(big.NewInt(0), big.NewInt(0).Mul(big.NewInt(200), big.NewInt(1e+18))),
+					"A": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
+					"B": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))),
+					"C": big.NewInt(0).Add(CalReward(m, 0, v, []uint64{0}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))),
+				},
+			},
+		},
+
+		//case 1:balance0 A,B两个自选签名者(A,B)，目前出了2个块 C虽然没有参与出块，但是c投票的B出块了  所以
+		{
+			addrNames:        []string{"A", "B", "C"},
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerBlockHeader{
+				{1,[]testerTransaction{}}, // 1 A
+				{2,[]testerTransaction{{from: "C", to: "B", balance:100, isVote: true}}}, // B
+			},
+			historyHashes: []string{"a", "b", "c", "d", "e"},
+			result:testerRewardResult{
+				map[string]*big.Int{
+					"A": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
+					"B": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{200}, []uint64{300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))),
+					"C": big.NewInt(0).Add(CalReward(m, 0, v, []uint64{1}, []uint64{100}, []uint64{300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))),
+				},
+			},
+		},
+
+		//case 2:balance0 A,B两个自选签名者(A,B)，区块2A转投给B B挖出区块三A会有投票奖励   同时之前A投A时候出的块也有A的投票奖励
+		{
+			addrNames:        []string{"A", "B", "C"},
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerBlockHeader{
+				{1,[]testerTransaction{}}, // 1 A
+				{2,[]testerTransaction{{from: "A", to: "B", balance:100, isVote: true}}}, // B
+				{3,[]testerTransaction{}},//a
+			},
+			historyHashes: []string{"a", "b", "c", "d", "e"},
+			result:testerRewardResult{
+				map[string]*big.Int{
+					"A": big.NewInt(0).Add(CalReward(m, 2, v, []uint64{1,1}, []uint64{100,100}, []uint64{100,300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
+					"B": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{200}, []uint64{300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
+					"C": big.NewInt(0).Add(CalReward(m, 0, v, []uint64{0}, []uint64{100}, []uint64{200}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
+				},
+			},
+		},
+
+		//case 3:balance0 A,B两个自选签名者(A,B)
+		{
+			addrNames:        []string{"A", "B", "C"},
+			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			txHeaders: []testerBlockHeader{
+				{1,[]testerTransaction{}}, // 1 A
+				{2,[]testerTransaction{{from: "A", to: "B", balance:100, isVote: true}}}, // B
+				{3,[]testerTransaction{}},//a
+			},
+			historyHashes: []string{"a", "b", "c", "d", "e"},
+			result:testerRewardResult{
+				map[string]*big.Int{
+					"A": big.NewInt(0).Add(CalReward(m, 2, v, []uint64{1,1}, []uint64{100,100}, []uint64{100,300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
+					"B": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{200}, []uint64{300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
+					"C": big.NewInt(0).Add(CalReward(m, 0, v, []uint64{0}, []uint64{100}, []uint64{200}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
 				},
 			},
 		},
@@ -529,7 +617,17 @@ func TestReward(t *testing.T)  {
 
 	for i ,tt := range tests {
 
-		fmt.Printf("%v", t)
+		//fmt.Printf("%v", t)
+
+		genesis := &core.Genesis{
+			ExtraData: make([]byte, extraVanity+extraSeal),
+		}
+
+		db := ethdb.NewMemDatabase()
+		genesis.Commit(db)
+		//state
+		state, _ := state.New(common.Hash{}, state.NewDatabase(db))
+
 
 		//账户池
 		accountsPool := newTestAccountPool()
@@ -540,16 +638,11 @@ func TestReward(t *testing.T)  {
 			account, _ := ks.NewAccount(name)
 			accountsPool.accounts[name] = &account
 			ks.Unlock(account, name)
+
+			//初始余额设置
+			//state.AddBalance(account.Address, big.NewInt(0).Mul(big.NewInt(100), big.NewInt(1e+18)))
 		}
 
-		genesis := &core.Genesis{
-			ExtraData: make([]byte, extraVanity+extraSeal),
-		}
-
-		db := ethdb.NewMemDatabase()
-		genesis.Commit(db)
-		//state
-		state, _ := state.New(common.Hash{}, state.NewDatabase(db))
 
 		var snap *Snapshot
 		var genesisVotes []*Vote
@@ -562,7 +655,10 @@ func TestReward(t *testing.T)  {
 			}
 			genesisVotes = append(genesisVotes, vote)
 			selfVoteSigners = append(selfVoteSigners, vote.Candidate)
-			state.AddBalance(vote.Candidate, vote.Stake.Mul(vote.Stake, big.NewInt(1e+18)))
+
+			//b := state.GetBalance(vote.Candidate)
+			//b.Sub(big.NewInt(0).Mul(vote.Stake, big.NewInt(1e+18)), b)
+			//state.AddBalance(vote.Candidate, b)
 			}
 		// Create new alien
 		alienCfg := &params.AlienConfig{
@@ -598,14 +694,11 @@ func TestReward(t *testing.T)  {
 			var modifyPredecessorVotes []Vote
 			for _, trans := range header.txs {
 				if trans.isVote {
-					if uint64(trans.balance) >= alienCfg.MinVoterBalance.Uint64() && (!candidateNeedPD || snap.isCandidate(accountsPool.accounts[trans.to].Address)) {
-						// vote event
-						currentBlockVotes = append(currentBlockVotes, Vote{
-							Voter:     accountsPool.accounts[trans.from].Address,
-							Candidate: accountsPool.accounts[trans.to].Address,
-							Stake:     big.NewInt(int64(trans.balance)),
-						})
-					}
+					currentBlockVotes = append(currentBlockVotes, Vote{
+						Voter:     accountsPool.accounts[trans.from].Address,
+						Candidate: accountsPool.accounts[trans.to].Address,
+						Stake:     big.NewInt(int64(trans.balance)),
+					})
 				} else if trans.isProposal {
 					minerRewardPT := minerRewardPerThousand
 					if trans.minerRewardPerT != 0 {
@@ -700,15 +793,6 @@ func TestReward(t *testing.T)  {
 			if j > 0 {
 				headers[j].ParentHash = headers[j-1].Hash()
 			}
-			//accounts.sign(headers[j], accounts.name(signer))
-			//var account accounts.Account
-			//for _, name := range tt.addrNames {
-			//	if accountsPool.accounts[name].Address == signer {
-			//		account = *accountsPool.accounts[name]
-			//		break
-			//	}
-			//}
-			//sig, _ := ks.SignHash(account, sigHash(headers[j]).Bytes())
 			sig, err := ks.SignHash(accounts.Account{Address: signer}, sigHash(headers[j]).Bytes())
 			copy(headers[j].Extra[len(headers[j].Extra)-65:], sig)
 
@@ -734,8 +818,8 @@ func TestReward(t *testing.T)  {
 			}
 		}
 
-		balance := state.GetBalance(accountsPool.accounts["A"].Address)
-		fmt.Println("check balance", balance.Uint64())
+		//balance := state.GetBalance(accountsPool.accounts["A"].Address)
+		//fmt.Println("check balance", balance.Uint64())
 		//fmt.Println("check balance", balance.Div(balance, new(big.Int).SetUint64(1e+18)))
 
 		for _, name := range tt.addrNames {
