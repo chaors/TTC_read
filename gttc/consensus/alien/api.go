@@ -19,6 +19,7 @@
 package alien
 
 import (
+	"fmt"
 	"github.com/TTCECO/gttc/common"
 	"github.com/TTCECO/gttc/consensus"
 	"github.com/TTCECO/gttc/core/types"
@@ -73,12 +74,14 @@ func (api *API) GetSnapshotAtNumber(number uint64) (*Snapshot, error) {
 // todo: add confirm headertime in return snapshot, to minimize the request from side chain
 func (api *API) GetSnapshotByHeaderTime(targetTime uint64, scHash common.Hash) (*Snapshot, error) {
 	header := api.chain.CurrentHeader()
+
 	// return errUnknownBlock if current is not reach trantorBlock
 	if !api.chain.Config().Alien.IsTrantor(header.Number) {
 		return nil, errUnknownBlock
 	}
 	period := new(big.Int).SetUint64(api.chain.Config().Alien.Period)
 	target := new(big.Int).SetUint64(targetTime)
+	fmt.Printf("ccc GetSnapshotByHeaderTime:%v---%v---%v\n",targetTime, header.Number, new(big.Int).Add(header.Time, period))
 	if ceil := new(big.Int).Add(header.Time, period); header == nil || target.Cmp(ceil) > 0 {
 		return nil, errUnknownBlock
 	}

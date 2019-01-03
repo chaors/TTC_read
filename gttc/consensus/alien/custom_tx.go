@@ -411,6 +411,7 @@ func (a *Alien) refundAddGas(refundGas RefundGas, address common.Address, value 
 }
 
 func (a *Alien) processSCEventConfirm(scEventConfirmaions []SCConfirmation, hash common.Hash, number uint64, loopInfo []string, tx *types.Transaction, txSender common.Address, refundHash RefundHash) ([]SCConfirmation, RefundHash) {
+	fmt.Printf("ccc processSCEventConfirm...\n")
 	scEventConfirmaions = append(scEventConfirmaions, SCConfirmation{
 		Hash:     hash,
 		Coinbase: txSender,

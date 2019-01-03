@@ -157,6 +157,7 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	//fmt.Printf("ccc AddLocal SendTx\n")
 	return b.eth.txPool.AddLocal(signedTx)
 }
 

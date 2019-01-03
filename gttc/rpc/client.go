@@ -290,16 +290,19 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	msg, err := c.newMessage(method, args...)
+	//fmt.Printf("ccc CallContext:---%v-----%v---%v\n", msg.Params, err, c.isHTTP)
 	if err != nil {
 		return err
 	}
 	op := &requestOp{ids: []json.RawMessage{msg.ID}, resp: make(chan *jsonrpcMessage, 1)}
 
+	//fmt.Printf("ccc CallContext op:%v\n", op.ids)
 	if c.isHTTP {
 		err = c.sendHTTP(ctx, op, msg)
 	} else {
 		err = c.send(ctx, op, msg)
 	}
+	fmt.Printf("ccc sendMsg:%v\n", err)
 	if err != nil {
 		return err
 	}
@@ -307,12 +310,15 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 	// dispatch has accepted the request and will close the channel it when it quits.
 	switch resp, err := op.wait(ctx); {
 	case err != nil:
+		//fmt.Printf("err:%v\n", err)
 		return err
 	case resp.Error != nil:
+		fmt.Printf("resp.Error:%v\n", resp.Error)//err here-!!!
 		return resp.Error
 	case len(resp.Result) == 0:
 		return ErrNoResult
 	default:
+		fmt.Printf("ccc succ \n")
 		return json.Unmarshal(resp.Result, &result)
 	}
 }

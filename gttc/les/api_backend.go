@@ -109,6 +109,7 @@ func (b *LesApiBackend) GetEVM(ctx context.Context, msg core.Message, state *sta
 }
 
 func (b *LesApiBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	//fmt.Printf("ccc Add SendTx\n")
 	return b.eth.txPool.Add(ctx, signedTx)
 }
 

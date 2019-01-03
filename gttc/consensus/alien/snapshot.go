@@ -438,6 +438,7 @@ func (s *Snapshot) updateSnapshotBySCConfirm(scConfirmations []SCConfirmation, h
 		}
 	}
 	// calculate the side chain reward in each loop
+	//fmt.Printf("ccc headerNumber:%v----%v", headerNumber.Uint64()+1, s.config.MaxSignerCount)
 	if (headerNumber.Uint64()+1)%s.config.MaxSignerCount == 0 {
 		s.updateSCConfirmation(headerNumber)
 	}
@@ -450,6 +451,7 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 	confirmedRecordMap := make(map[string]map[common.Address]bool)
 	confirmedCoinbase := make(map[uint64]common.Address)
 	sep := ":"
+	fmt.Printf("ccc calculateConfirmedNumber:%v-----%v\n", record.LastConfirmedNumber, record.MaxHeaderNumber)
 	for i := record.LastConfirmedNumber + 1; i <= record.MaxHeaderNumber; i++ {
 		if _, ok := record.Record[i]; ok {
 			// during reorged, the side chain loop info may more than one for each side chain block number.
@@ -465,6 +467,7 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 					// new coinbase for same loop info
 					if _, ok := confirmedRecordMap[key][scConfirm.Coinbase]; !ok {
 						confirmedRecordMap[key][scConfirm.Coinbase] = true
+						fmt.Printf("ccc scConfirm:%v---%v\n---%v-----%v\n", i, key, scConfirm.Coinbase.Hex(), len(confirmedRecordMap[key]))
 						if len(confirmedRecordMap[key]) >= minConfirmedSignerCount {
 							headerNum, err := strconv.Atoi(scConfirm.LoopInfo[len(scConfirm.LoopInfo)-2])
 							if err == nil && uint64(headerNum) > confirmedNumber {
@@ -478,6 +481,7 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 	}
 
 	for info, count := range confirmedRecordMap {
+		//fmt.Printf("ccc confirmedRecordMap:count:%v---%v\n", len(count), minConfirmedSignerCount)
 		if len(count) >= minConfirmedSignerCount {
 			infos := strings.Split(info, sep)
 			for i := 0; i+1 < len(infos); i += 2 {
@@ -514,6 +518,7 @@ func (s *Snapshot) updateSCConfirmation(headerNumber *big.Int) {
 			s.SCAllReward[scHash][headerNumber.Uint64()] = make(map[common.Address]uint64)
 		}
 		confirmedNumber, confirmedCoinbase := s.calculateConfirmedNumber(record, minConfirmedSignerCount)
+		fmt.Printf("ccc updateSCConfirmation confirmedNumber:%v---%v\n----%v", confirmedNumber, record.LastConfirmedNumber, confirmedCoinbase)
 		if confirmedNumber > record.LastConfirmedNumber {
 			// todo: map coinbase of side chain to coin base of main chain here
 			lastSCCoinbase := common.Address{}
@@ -911,6 +916,7 @@ func (s *Snapshot) calculateSCReward(minerReward *big.Int) map[common.Address]*b
 			// check reward for the block number is exist
 			if reward, ok := scReward[s.Number-scRewardDelayLoopCount*s.config.MaxSignerCount]; ok {
 				// check confirm is exist, to get countPerPeriod and rewardPerPeriod
+				fmt.Printf("cc SCAllReward\n")
 				if confirmation, ok := s.SCConfirmation[scHash]; ok {
 					// calculate the side chain reward base on RewardPerPeriod(/100) and record.RewardPerPeriod
 					for addr, scre := range reward {

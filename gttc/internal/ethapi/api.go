@@ -1172,12 +1172,14 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 // submitTransaction is a helper function that submits tx to txPool and logs a message.
 func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (common.Hash, error) {
 	if err := b.SendTx(ctx, tx); err != nil {
+		fmt.Printf("ccc SendTx:%v\n", err)
 		return common.Hash{}, err
 	}
 	if tx.To() == nil {
 		signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
 		from, err := types.Sender(signer, tx)
 		if err != nil {
+			fmt.Printf("ccc Sender:%v\n", err)
 			return common.Hash{}, err
 		}
 		addr := crypto.CreateAddress(from, tx.Nonce())
@@ -1228,8 +1230,10 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 // SendRawTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error) {
+	fmt.Printf("ccc SendRawTransaction...\n")
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
+		fmt.Printf("ccc DecodeBytes:%v\n", err)
 		return common.Hash{}, err
 	}
 	return submitTransaction(ctx, s.b, tx)

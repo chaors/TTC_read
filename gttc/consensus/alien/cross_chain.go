@@ -20,6 +20,7 @@ package alien
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -58,6 +59,7 @@ func (a *Alien) getMainChainSnapshotByTime(chain consensus.ChainReader, headerTi
 	defer cancel()
 
 	var ms *Snapshot
+	//fmt.Printf("getMcSnap:%v\n", scHash)
 	if err := chain.Config().Alien.MCRPCClient.CallContext(ctx, &ms, "alien_getSnapshotByHeaderTime", headerTime, scHash); err != nil {
 		return nil, err
 	} else if ms.Period == 0 {
@@ -83,6 +85,7 @@ func (a *Alien) sendTransactionToMainChain(chain consensus.ChainReader, tx *type
 		return common.Hash{}, err
 	}
 	var hash common.Hash
+	fmt.Printf("ccc sendTransactionToMainChain:%v---%v\n", tx.Value(), tx.To().Hex())
 	if err := chain.Config().Alien.MCRPCClient.CallContext(ctx, &hash, "eth_sendRawTransaction", common.ToHex(data)); err != nil {
 		return common.Hash{}, err
 	}

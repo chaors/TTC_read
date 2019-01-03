@@ -566,8 +566,10 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrGasLimit
 	}
 	// Make sure the transaction is signed properly
+	fmt.Printf("ccc validateTx---%v\n", tx.To().Hex())
 	from, err := types.Sender(pool.signer, tx)
 	if err != nil {
+		fmt.Printf("ccc Sender:%v", err)
 		return ErrInvalidSender
 	}
 	// Drop non-local transactions under our own minimal accepted gas price

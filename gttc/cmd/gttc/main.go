@@ -304,24 +304,18 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}else {
 			fmt.Printf("ccc client succ--%v...\n","http://" + mcRPCAddress + ":" + strconv.Itoa(mcRPCPort))
 		}
+		fmt.Printf("SideChain:%v\n", ethereum.BlockChain().Config().Alien)
 		ethereum.BlockChain().Config().Alien.SideChain = true
 		ethereum.BlockChain().Config().Alien.Period = uint64(mcPeriod)
 		ethereum.BlockChain().Config().Alien.MCRPCClient = client
-	}else {
-		fmt.Printf("ccc no sideChain...\n")
 	}
-	//chaorsttest
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
 		if ctx.GlobalBool(utils.LightModeFlag.Name) || ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
 			utils.Fatalf("Light clients do not support mining")
-		}else {
-
-			fmt.Printf("ccc node StartMining...\n")
 		}
-
 		var ethereum *eth.Ethereum
 		if err := stack.Service(&ethereum); err != nil {
 			utils.Fatalf("Ethereum service not running: %v", err)
@@ -340,8 +334,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		ethereum.TxPool().SetGasPrice(utils.GlobalBig(ctx, utils.GasPriceFlag.Name))
 		if err := ethereum.StartMining(true); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
-		}else {
-			fmt.Printf("ccc node StartMining...\n")
 		}
 	}
 }

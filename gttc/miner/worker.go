@@ -371,16 +371,16 @@ func (self *worker) wait() {
 
 // push sends a new work task to currently live miner agents.
 func (self *worker) push(work *Work) {
-	fmt.Printf("ccc push work---%v", self.mining)
+	//fmt.Printf("ccc push work---%v", self.mining)
 	if atomic.LoadInt32(&self.mining) != 1 {
 		return
 	}
 
 	for agent := range self.agents {
 		atomic.AddInt32(&self.atWork, 1)
-		fmt.Printf("ccc start agent.Work...\n")
+		//fmt.Printf("ccc start agent.Work...\n")
 		if ch := agent.Work(); ch != nil {
-			fmt.Printf("ccc agent.Working...\n")
+			//fmt.Printf("ccc agent.Working...\n")
 			ch <- work
 		}
 	}

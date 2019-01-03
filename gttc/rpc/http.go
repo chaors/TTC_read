@@ -107,7 +107,9 @@ func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) e
 	if err := json.NewDecoder(respBody).Decode(&respmsg); err != nil {
 		return err
 	}
+	fmt.Printf("ccc sendHTTP respmsg:%v\n----%v\n", respmsg.Error, respmsg)
 	op.resp <- &respmsg
+	//fmt.Printf("ccc sendHTTP2:%v\n", op.resp)
 	return nil
 }
 

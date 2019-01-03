@@ -565,11 +565,11 @@ func (a *Alien) Prepare(chain consensus.ChainReader, header *types.Header) error
 }
 
 func (a *Alien) mcInturn(chain consensus.ChainReader, signer common.Address, headerTime uint64) bool {
-	fmt.Printf("ccc mcInturn:%v\n", chain.Config().Alien.SideChain)
+	//fmt.Printf("ccc mcInturn:%v----%v\n", chain.Config().Alien.SideChain, headerTime)
 	if chain.Config().Alien.SideChain {
 		ms, err := a.getMainChainSnapshotByTime(chain, headerTime, chain.GetHeaderByNumber(0).ParentHash)
 		if err != nil || len(ms.Signers) == 0 || ms.Period == 0 {
-			//log.Info("Main chain snapshot query fail ", "err", err)
+			log.Info("Main chain snapshot query fail ", "err", err)
 			return false
 		}
 		// calculate the coinbase by loopStartTime & signers slice
@@ -626,6 +626,7 @@ func (a *Alien) mcConfirmBlock(chain consensus.ChainReader, header *types.Header
 
 	if signer != (common.Address{}) {
 		// todo update gaslimit , gasprice ,and get ChainID need to get from mainchain
+		fmt.Printf("ccc mcConfirmBlock:%v---%v---%v\n", header.Number, a.lcsc, a.config.MaxSignerCount*scUnconfirmLoop)
 		if header.Number.Uint64() > a.lcsc && header.Number.Uint64() > a.config.MaxSignerCount*scUnconfirmLoop {
 			nonce, err := a.getTransactionCountFromMainChain(chain, signer)
 			if err != nil {
@@ -649,6 +650,7 @@ func (a *Alien) mcConfirmBlock(chain consensus.ChainReader, header *types.Header
 				}
 			}
 
+			fmt.Printf("getNetVersionFromMainChain mcNetVersion:%v----nonce:%v\n", mcNetVersion, nonce)
 			signedTx, err := signTxFn(accounts.Account{Address: signer}, tx, big.NewInt(int64(mcNetVersion)))
 			if err != nil {
 				log.Info("Confirm tx sign fail", "err", err)
@@ -660,6 +662,8 @@ func (a *Alien) mcConfirmBlock(chain consensus.ChainReader, header *types.Header
 				log.Info("Confirm tx result", "txHash", txHash)
 				a.lcsc = header.Number.Uint64()
 			}
+
+			fmt.Printf("sendCfm succ:%v\n", txHash.Hex())
 		}
 	}
 
@@ -811,7 +815,7 @@ func (a *Alien) Authorize(signer common.Address, signFn SignerFn, signTxFn SignT
 func (a *Alien) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	header := block.Header()
 
-	fmt.Printf("ccc start Sealing...\n")
+	//fmt.Printf("ccc start Sealing...\n")
 
 	// Sealing the genesis block is not supported
 	number := header.Number.Uint64()
