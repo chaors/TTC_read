@@ -304,7 +304,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}else {
 			fmt.Printf("ccc client succ--%v...\n","http://" + mcRPCAddress + ":" + strconv.Itoa(mcRPCPort))
 		}
-		fmt.Printf("SideChain:%v\n", ethereum.BlockChain().Config().Alien)
+		fmt.Printf("SideChain:%v\n", ethereum.BlockChain().Config())
 		ethereum.BlockChain().Config().Alien.SideChain = true
 		ethereum.BlockChain().Config().Alien.Period = uint64(mcPeriod)
 		ethereum.BlockChain().Config().Alien.MCRPCClient = client
