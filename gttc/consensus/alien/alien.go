@@ -575,7 +575,11 @@ func (a *Alien) mcInturn(chain consensus.ChainReader, signer common.Address, hea
 		// calculate the coinbase by loopStartTime & signers slice
 		loopIndex := int((headerTime-ms.LoopStartTime)/ms.Period) % len(ms.Signers)
 
-		fmt.Printf("ccc mcInturn loopIndex:%v-----%v\n-------%v", loopIndex, signer.Hex(), ms.Signers[loopIndex].Hex())
+		fmt.Printf("ccc mcInturn loopIndex:%v-----%v\n-------%v\n", loopIndex, signer.Hex(), ms.Signers[loopIndex].Hex())
+		for i, addr := range ms.Signers {
+
+			fmt.Printf("ccc msSigner[%v]:%v\n", i, addr.Hex())
+		}
 
 		if loopIndex >= len(ms.Signers) {
 			return false

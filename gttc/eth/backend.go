@@ -337,6 +337,7 @@ func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 
 func (s *Ethereum) StartMining(local bool) error {
 	eb, err := s.Etherbase()
+	fmt.Printf("StartMining by %v\n", eb.Hex())
 	if err != nil {
 		log.Error("Cannot start mining without etherbase", "err", err)
 		return fmt.Errorf("etherbase missing: %v", err)

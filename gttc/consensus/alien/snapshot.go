@@ -465,9 +465,10 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 						confirmedRecordMap[key] = make(map[common.Address]bool)
 					}
 					// new coinbase for same loop info
+					fmt.Printf("ccc scConfirm:%v---%v\n----%v\n", i, key, scConfirm.Coinbase.Hex())
 					if _, ok := confirmedRecordMap[key][scConfirm.Coinbase]; !ok {
 						confirmedRecordMap[key][scConfirm.Coinbase] = true
-						fmt.Printf("ccc scConfirm:%v---%v\n---%v-----%v\n", i, key, scConfirm.Coinbase.Hex(), len(confirmedRecordMap[key]))
+						fmt.Printf("ccc scConfirmgoon:%v\n", len(confirmedRecordMap[key]))
 						if len(confirmedRecordMap[key]) >= minConfirmedSignerCount {
 							headerNum, err := strconv.Atoi(scConfirm.LoopInfo[len(scConfirm.LoopInfo)-2])
 							if err == nil && uint64(headerNum) > confirmedNumber {
@@ -481,7 +482,7 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 	}
 
 	for info, count := range confirmedRecordMap {
-		//fmt.Printf("ccc confirmedRecordMap:count:%v---%v\n", len(count), minConfirmedSignerCount)
+		fmt.Printf("ccc confirmedRecordMap:count:%v---%v\n", len(count), count)
 		if len(count) >= minConfirmedSignerCount {
 			infos := strings.Split(info, sep)
 			for i := 0; i+1 < len(infos); i += 2 {
