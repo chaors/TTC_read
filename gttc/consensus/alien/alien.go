@@ -599,10 +599,12 @@ func (a *Alien) getLastLoopInfo(chain consensus.ChainReader, header *types.Heade
 		loopHeaderInfo := ""
 		inLastLoop := false
 		extraTime := (header.Time.Uint64() - mcLoopStartTime) % (mcPeriod * mcSignerLength)
+		fmt.Printf("ccc before header:%v mcPeriod:%v cfgPeriod:%v mcLoopStartTime:%v\n", header.Number, mcPeriod, a.config.Period, mcLoopStartTime)
 		for i := uint64(0); i < a.config.MaxSignerCount*2*(mcPeriod/a.config.Period); i++ {
 			//2???
 			header = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 			newTime := (header.Time.Uint64() - mcLoopStartTime) % (mcPeriod * mcSignerLength)
+			fmt.Printf("ccc getLastLoopInfo newTime:%v extraTime:%v-----%v\n", newTime, extraTime, header.Number)
 			if newTime > extraTime {
 				if !inLastLoop {
 					inLastLoop = true
@@ -615,6 +617,7 @@ func (a *Alien) getLastLoopInfo(chain consensus.ChainReader, header *types.Heade
 				loopHeaderInfo += fmt.Sprintf(":%d:%s", header.Number.Uint64(), header.Coinbase.Hex())
 			}
 		}
+		//fmt.Printf("ccc loopinfo:%v\n", loopHeaderInfo)
 		if len(loopHeaderInfo) > 0 {
 			return []byte(loopHeaderInfo), nil
 		}
@@ -654,7 +657,7 @@ func (a *Alien) mcConfirmBlock(chain consensus.ChainReader, header *types.Header
 				}
 			}
 
-			fmt.Printf("getNetVersionFromMainChain mcNetVersion:%v----nonce:%v\n", mcNetVersion, nonce)
+			fmt.Printf("getNetVersionFromMainChain mcNetVersion:%v----%v----nonce:%v\n", header.Number, mcNetVersion, nonce)
 			signedTx, err := signTxFn(accounts.Account{Address: signer}, tx, big.NewInt(int64(mcNetVersion)))
 			if err != nil {
 				log.Info("Confirm tx sign fail", "err", err)
@@ -874,6 +877,7 @@ func (a *Alien) Seal(chain consensus.ChainReader, block *types.Block, stop <-cha
 
 	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
 
+	fmt.Printf("ccc seal succ number:%v----%v\n%v----%v\n", header.Number, header.Time, header.Coinbase.Hex(), a.signer.Hex())
 	return block.WithSeal(header), nil
 }
 
@@ -916,14 +920,17 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 
 	if config.Alien.IsTrantor(header.Number) {
 		// rewards for the side chain coinbase
+		fmt.Printf("cc accumulateRewards old minerReward:%v\n", minerReward)
 		for scCoinbase, reward := range snap.calculateSCReward(minerReward) {
 			state.AddBalance(scCoinbase, reward)
 			minerReward.Sub(minerReward, reward)
+			fmt.Printf("ccc scCoinbase:%v reward:%v minerReward:%v\n", scCoinbase.Hex(), reward, minerReward)
 		}
 		// refund gas for custom txs
 		for sender, gas := range refundGas {
 			state.AddBalance(sender, gas)
 			minerReward.Sub(minerReward, gas)
+			fmt.Printf("ccc refundGas sender:%v gas:%v minerReward:%v\n",sender.Hex(), gas, minerReward)
 		}
 	}
 	// rewards for the miner

@@ -430,6 +430,7 @@ func (s *Snapshot) updateSnapshotBySCConfirm(scConfirmations []SCConfirmation, h
 		// new confirmation header number must larger than last confirmed number of this side chain
 		if s.isSideChainCoinbase(scc.Hash, scc.Coinbase) {
 			if _, ok := s.SCConfirmation[scc.Hash]; ok && scc.Number > s.SCConfirmation[scc.Hash].LastConfirmedNumber {
+				fmt.Printf("ccc updateSnapshotBySCConfirm:%v-----%v\n", scc.Number, scc.LoopInfo)
 				s.SCConfirmation[scc.Hash].Record[scc.Number] = append(s.SCConfirmation[scc.Hash].Record[scc.Number], scc.copy())
 				if scc.Number > s.SCConfirmation[scc.Hash].MaxHeaderNumber {
 					s.SCConfirmation[scc.Hash].MaxHeaderNumber = scc.Number
@@ -458,7 +459,8 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 			for _, scConfirm := range record.Record[i] {
 				// loopInfo slice contain number and coinbase address of side chain block,
 				// so the length of loop info must larger than twice of minConfirmedSignerCount .
-				//2/3确认
+				//2/3确认  ???
+				fmt.Printf("ccc scConfirm.LoopInfo:%v\n", scConfirm.LoopInfo)
 				if len(scConfirm.LoopInfo) >= minConfirmedSignerCount*2 {
 					key := strings.Join(scConfirm.LoopInfo, sep)
 					if _, ok := confirmedRecordMap[key]; !ok {
@@ -533,19 +535,18 @@ func (s *Snapshot) updateSCConfirmation(headerNumber *big.Int) {
 						currentSCCoinbaseCount++
 					}
 
-					fmt.Printf("ccc SCAllReward...\n")
 					if _, ok := s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase]; !ok {
 						s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase] = s.calculateCurrentBlockReward(currentSCCoinbaseCount, record.CountPerPeriod)
 					} else {
 						s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase] += s.calculateCurrentBlockReward(currentSCCoinbaseCount, record.CountPerPeriod)
 					}
+					fmt.Printf("ccc SCAllReward:%v scCoinbase:%v last:%v\n-----currentSCCoinbaseCount:%v-----%v----%v\n", n, scCoinbase.Hex(), lastSCCoinbase.Hex(), currentSCCoinbaseCount, record.CountPerPeriod, s.calculateCurrentBlockReward(currentSCCoinbaseCount, record.CountPerPeriod))
 
 					// update lastSCCoinbase
 					lastSCCoinbase = scCoinbase
 				}
 			}
 
-			//1???
 			for i := record.LastConfirmedNumber + 1; i <= confirmedNumber; i++ {
 				if _, ok := s.SCConfirmation[scHash].Record[i]; ok {
 					delete(s.SCConfirmation[scHash].Record, i)
@@ -907,7 +908,7 @@ func (s *Snapshot) calculateSCReward(minerReward *big.Int) map[common.Address]*b
 		for _, record := range s.SCConfirmation {
 			scRewardSum.Add(scRewardSum, new(big.Int).SetUint64(record.RewardPerPeriod))
 		}
-		fmt.Printf("ccc scRewardSum--%v...\n", scRewardSum)
+		fmt.Printf("ccc scRewardSum-----%v...\n", scRewardSum)
 		if scRewardSum.Uint64() < 1000 {
 			scRewardSum.SetUint64(1000)
 		}
@@ -915,18 +916,20 @@ func (s *Snapshot) calculateSCReward(minerReward *big.Int) map[common.Address]*b
 		rewards := make(map[common.Address]*big.Int)
 		for scHash, scReward := range s.SCAllReward {
 			// check reward for the block number is exist
+			//差2*3
 			if reward, ok := scReward[s.Number-scRewardDelayLoopCount*s.config.MaxSignerCount]; ok {
 				// check confirm is exist, to get countPerPeriod and rewardPerPeriod
-				fmt.Printf("cc SCAllReward\n")
+				fmt.Printf("cc SCAllReward:%v\n", s.Number)
 				if confirmation, ok := s.SCConfirmation[scHash]; ok {
 					// calculate the side chain reward base on RewardPerPeriod(/100) and record.RewardPerPeriod
 					for addr, scre := range reward {
 						//1???
 						singleReward := new(big.Int).SetUint64(scre * confirmation.RewardPerPeriod)
 						singleReward.Div(singleReward, scRewardSum)
+						fmt.Printf("ccc calReward0 singleReward:%v score:%v RewardPerPeriod:%v\n", singleReward, scre, confirmation.RewardPerPeriod)
 						singleReward.Mul(singleReward, minerReward)
 
-						fmt.Printf("ccc calReward:%v for coinbase:%v\n", addr.Hex(), singleReward)
+						fmt.Printf("ccc calReward1:%v for coinbase:%v\n", singleReward, addr.Hex(), )
 						if _, ok := rewards[addr]; ok {
 							rewards[addr].Add(rewards[addr], singleReward)
 						} else {
