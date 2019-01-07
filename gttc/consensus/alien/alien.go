@@ -934,6 +934,7 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		}
 	}
 	// rewards for the miner
+	fmt.Printf("ccc miner:%v minerReward:%v-----%v\n", header.Coinbase.Hex(), minerReward, header.Number)
 	state.AddBalance(header.Coinbase, minerReward)
 }
 

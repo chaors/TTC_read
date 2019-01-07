@@ -470,9 +470,9 @@ func (s *Snapshot) calculateConfirmedNumber(record *SCRecord, minConfirmedSigner
 					fmt.Printf("ccc scConfirm:%v---%v\n----%v\n", i, key, scConfirm.Coinbase.Hex())
 					if _, ok := confirmedRecordMap[key][scConfirm.Coinbase]; !ok {
 						confirmedRecordMap[key][scConfirm.Coinbase] = true
-						fmt.Printf("ccc scConfirmgoon:%v\n", len(confirmedRecordMap[key]))
 						if len(confirmedRecordMap[key]) >= minConfirmedSignerCount {
 							headerNum, err := strconv.Atoi(scConfirm.LoopInfo[len(scConfirm.LoopInfo)-2])
+							fmt.Printf("ccc scConfirmgoon:%v----%v-----%v\n", len(confirmedRecordMap[key]),confirmedNumber, headerNum)
 							if err == nil && uint64(headerNum) > confirmedNumber {
 								confirmedNumber = uint64(headerNum)
 							}

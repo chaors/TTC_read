@@ -44,6 +44,7 @@ type testerTransaction struct {
 	candidate    string // name of candidate in proposal
 	txHash       string // hash of tx
 	decision     bool   // decision of declare
+	//add
 	minerRewardPerT uint64
 }
 
