@@ -196,7 +196,7 @@ func TestAlien(t *testing.T)  {
 			[]testerSelfVoter{{"A", 200}},
 			[]testerBlockHeader{ // BA
 				{1, []testerTransaction{}}, //b
-				//{2,[]testerTransaction{}},//a
+				{2,[]testerTransaction{}},//a
 				//{3,[]testerTransaction{}},//b
 			},
 			//testerRewardResult{
@@ -536,6 +536,10 @@ func TestReward(t *testing.T)  {
 	m := m1.Uint64()
 	v := s.Sub(s, m1).Uint64()
 
+	//defaultBlockReward := big.NewInt(5e+18)
+	//defaultMinerRewardPerThousand := big.NewInt(618)
+
+
 	tests := []struct {
 		addrNames        []string
 		selfVoters       []testerSelfVoter
@@ -554,13 +558,14 @@ func TestReward(t *testing.T)  {
 			historyHashes: []string{"a", "b", "c", "d", "e"},
 			result:testerRewardResult{
 				map[string]*big.Int{
-					"A": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
-					"B": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))),
-					"C": big.NewInt(0).Add(CalReward(m, 0, v, []uint64{0}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))),
+					"A": CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}),
+					"B": CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}),
+					"C": big.NewInt(0),
 				},
 			},
 		},
 
+		/**
 		//case 1:balance0 A,B两个自选签名者(A,B)，目前出了2个块 C虽然没有参与出块，但是c投票的B出块了  所以
 		{
 			addrNames:        []string{"A", "B", "C"},
@@ -572,9 +577,9 @@ func TestReward(t *testing.T)  {
 			historyHashes: []string{"a", "b", "c", "d", "e"},
 			result:testerRewardResult{
 				map[string]*big.Int{
-					"A": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
-					"B": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{200}, []uint64{300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))),
-					"C": big.NewInt(0).Add(CalReward(m, 0, v, []uint64{1}, []uint64{100}, []uint64{300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))),
+					"A": CalReward(m, 1, v, []uint64{1}, []uint64{100}, []uint64{100}),
+					"B": CalReward(m, 1, v, []uint64{1}, []uint64{200}, []uint64{300}),
+					"C": CalReward(m, 0, v, []uint64{1}, []uint64{100}, []uint64{300}),
 				},
 			},
 		},
@@ -591,9 +596,9 @@ func TestReward(t *testing.T)  {
 			historyHashes: []string{"a", "b", "c", "d", "e"},
 			result:testerRewardResult{
 				map[string]*big.Int{
-					"A": big.NewInt(0).Add(CalReward(m, 2, v, []uint64{1,1}, []uint64{100,100}, []uint64{100,300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
-					"B": big.NewInt(0).Add(CalReward(m, 1, v, []uint64{1}, []uint64{200}, []uint64{300}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
-					"C": big.NewInt(0).Add(CalReward(m, 0, v, []uint64{0}, []uint64{100}, []uint64{200}), big.NewInt(0).Mul(big.NewInt(0), big.NewInt(1e18))), //m*1 + v*1*100/100,
+					"A": CalReward(m, 2, v, []uint64{1,1}, []uint64{100,100}, []uint64{100,300}),
+					"B": CalReward(m, 1, v, []uint64{1}, []uint64{200}, []uint64{300}),
+					"C": big.NewInt(0),
 				},
 			},
 		},
@@ -616,6 +621,7 @@ func TestReward(t *testing.T)  {
 				},
 			},
 		},
+		*/
 
 		//case 4:提议改变奖励的比例
 
@@ -730,6 +736,7 @@ func TestReward(t *testing.T)  {
 		}
 
 		headers := make([]*types.Header, len(tt.txHeaders))
+		lastNumber := uint64(0) //用于块号跳跃以测区块衰减的的case
 		for j, header := range tt.txHeaders {
 
 			var currentBlockVotes []Vote
@@ -780,12 +787,12 @@ func TestReward(t *testing.T)  {
 			currentHeaderExtra := HeaderExtra{}
 			signer := common.Address{}
 
-			// (j==0) means (header.Number==1)
+			// (j==0) means firstNumber
 			if j == 0 {
 				for k := 0; k < int(alienCfg.MaxSignerCount); k++ {
 					currentHeaderExtra.SignerQueue = append(currentHeaderExtra.SignerQueue, selfVoteSigners[k%len(selfVoteSigners)])
 				}
-				currentHeaderExtra.LoopStartTime = alienCfg.GenesisTimestamp // here should be parent genesisTimestamp
+				currentHeaderExtra.LoopStartTime = alienCfg.GenesisTimestamp
 				signer = selfVoteSigners[0]
 
 			} else {
@@ -829,7 +836,7 @@ func TestReward(t *testing.T)  {
 			copy(ExtraData[extraVanity:], currentHeaderExtraEnc)
 
 			headers[j] = &types.Header{
-				Number:   big.NewInt(int64(j) + 1),
+				Number:   new(big.Int).SetUint64(header.number),
 				Time:     big.NewInt((int64(j)+1)*int64(defaultBlockPeriod) - 1),
 				Coinbase: signer,
 				Extra:    ExtraData,
@@ -841,7 +848,14 @@ func TestReward(t *testing.T)  {
 			copy(headers[j].Extra[len(headers[j].Extra)-65:], sig)
 
 			// Pass all the headers through alien and ensure tallying succeeds
-			snap, err = alien.snapshot(&testerChainReader{db: db}, headers[j].Number.Uint64(), headers[j].Hash(), headers[:j+1], genesisVotes, uint64(1))
+			if headers[j].Number.Uint64() == lastNumber+1 {
+				snap, err = alien.snapshot(&testerChainReader{db: db}, headers[j].Number.Uint64(), headers[j].Hash(), headers[:j+1], genesisVotes, uint64(1))
+			}else {
+				snap, err = alien.snapshot(&testerChainReader{db: db}, headers[j].Number.Uint64(), headers[j].Hash(), headers[:j+1], genesisVotes, uint64(1))
+			}
+
+			lastNumber = header.number
+
 			genesisVotes = []*Vote{}
 			if err != nil {
 				t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
