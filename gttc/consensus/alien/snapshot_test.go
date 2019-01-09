@@ -39,13 +39,14 @@ type testerTransaction struct {
 	balance      int    // balance address in snap.voter
 	isVote       bool   // "ufo:1:event:vote"
 	isProposal   bool   // "ufo:1:event:proposal:..."
-	proposalType uint64 // proposalTypeCandidateAdd or proposalTypeCandidateRemove
+	proposalType uint64 // 1proposalTypeCandidateAdd or 2proposalTypeCandidateRemove
 	isDeclare    bool   // "ufo:1:event:declare:..."
 	candidate    string // name of candidate in proposal
 	txHash       string // hash of tx
 	decision     bool   // decision of declare
 	//add
 	minerRewardPerT uint64
+	validationLoopCnt uint64
 }
 
 type testerSingleHeader struct {

@@ -533,6 +533,7 @@ func (s *Snapshot) updateSCConfirmation(headerNumber *big.Int) {
 						currentSCCoinbaseCount = 1
 					} else {
 						currentSCCoinbaseCount++
+						fmt.Printf("ccc successive:%v----%v---%v\n", currentSCCoinbaseCount, n, scCoinbase.Hex())
 					}
 
 					if _, ok := s.SCAllReward[scHash][headerNumber.Uint64()][scCoinbase]; !ok {
