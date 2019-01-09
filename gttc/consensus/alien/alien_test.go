@@ -31,42 +31,25 @@ type testerRewardResult struct {
 	balance map[string]*big.Int
 }
 
-type testerProposal struct {
-	typeOfProposal string
-	countOfAgree []string
-}
-
-
 func (r *testerChainReader) GetHeader(hash common.Hash, number uint64) *types.Header {
-
-	//return rawdb.ReadHeader(r.db, hash, number)
 	return rawdb.ReadHeader(r.db, rawdb.ReadCanonicalHash(r.db, number), number)
 }
 
 func (r *testerChainReader) GetGenesisHeader() *types.Header {
-
 	return rawdb.ReadHeader(r.db, rawdb.ReadCanonicalHash(r.db, 0), 0)
 }
 
-//func (r *testerChainReader) Put(key []byte, value []byte) error {
-//
-//}
-
+//KeyStore用于创建地址
 func tmpKeyStore(t *testing.T, encrypted bool) (string, *keystore.KeyStore) {
 	d, err := ioutil.TempDir("", "alien-keystore-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	//newKs := keystore.NewPlaintextKeyStore
-	//if encrypted {
-	//	newKs := func(kd string) *keystore.KeyStore {
-	//		return keystore.NewKeyStore(kd, veryLightScryptN, veryLightScryptP)
-	//	}
-	//}
-	//ks :=
+
 	return d, keystore.NewKeyStore(d, veryLightScryptN, veryLightScryptP)
 }
 
+//地址池 key:A,B,C(同时作为Account密码)  value:Account
 type testAccountPool struct {
 
 	accounts map[string]*accounts.Account
@@ -80,6 +63,7 @@ func newTestAccountPool() *testAccountPool {
 		accounts: make(map[string]*accounts.Account),
 	}
 }
+
 /*
 blockReward	    当前一个块的奖励
 minerRewardPerT	矿工奖励千分比
@@ -120,12 +104,6 @@ func CalReward(blockReward *big.Int, minerRewardPerT uint64, minerCount uint64, 
 	return big.NewInt(0).Add(asMinerReward, asVoterReward)
 }
 
-//
-//func SignerFn(accounts.Account, []byte) ([]byte, error) {
-//
-//
-//}
-
 /**
 alien要测哪些东西：
 	1.prepare,finalize,seal,verify等流程
@@ -138,7 +116,6 @@ alien要测哪些东西：
 	3.real_queue
 	4.time
 */
-
 
 // TODO:need to rewrite:出块顺序如果不符和什么的，产生短暂分叉的，出块对应时间片正确性
 // 暂时测得是一个块的mining过程和验证：Prepare->Finalize->Seal->VerifyHeader->VerifySeal几个重要流程
@@ -314,37 +291,6 @@ func TestAlien(t *testing.T)  {
 }
 
 // 测试块奖励的逐年衰减
-func TestWeakenRewardsByYears1(t *testing.T) {
-
-	/*
-	tests := []struct {
-		period     uint64
-		addNames   []string
-		number     uint64
-		coinBase   string
-		votes      []testerVote
-		selfVoters []testerSelfVoter
-		result     []map[string]*big.Int
-	}{
-		// case0:奖励第一年产生衰减 5-->2.5
-		{
-			period:3,
-			addNames: []string{"A", "B", "C"},
-			number:   24*60*60*365*1/3 + 33, //第二年的区块
-			coinBase: string("A"),
-			votes: []testerVote{
-				{"A", "A", 100},
-			},
-			result: []map[string]*big.Int{
-				{"A": CalReward(big.NewInt(0).Div(SignerBlockReward, big.NewInt(2)), minerRewardPerThousand, 1, []uint64{1}, []uint64{100}, []uint64{100})},
-				{"B": big.NewInt(0)},
-				{"C": big.NewInt(0)},
-			},
-		},
-	}*/
-
-
-}
 func TestWeakenRewardsByYears(t *testing.T) {
 
 	tests := []struct {
@@ -451,73 +397,58 @@ func TestWeakenRewardsByYears(t *testing.T) {
 	}
 }
 
-// TODO:need add sidechain
+// TODO:need add sidechain & trantorBlock fork
 func TestReward(t *testing.T)  {
-
-	defaultBlockReward := big.NewInt(5e+18)
-	defaultMinerRewardPerThousand := uint64(618)
-
-	/*共识alien参数基本固定,不在测试结构体现
-	alienCfg := &params.AlienConfig{
-		Period:          uint64(3),
-		Epoch:           uint64(10),
-		MinVoterBalance: big.NewInt(100),
-		MaxSignerCount:  uint64(5),
-		SelfVoteSigners: selfVoteSigners,
-	}
-	*/
-	//投票时的余额只是用于算比例,测试验证的只是出块过程产生的奖励!!!
-	//???是否有必要将投票时的余额与产生奖励的余额关联
-
 	tests := []struct {
 		addrNames        []string
+		period           uint64
+		epoch            uint64
+		minVoterBalance  uint64
+		maxSignerCount   uint64
 		selfVoters       []testerSelfVoter
 		txHeaders        []testerBlockHeader
-		historyHashes []string
+		historyHashes    []string
 		result           testerRewardResult
 	}{
 
 		//case 0:balance0 A,B两个自选签名者(A,B)，目前只出了2个块 所以还没轮到b出块 A自己选自己所以奖励都是自己的
 		{
-			addrNames:        []string{"A", "B", "C"},
-			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
+			addrNames:[]string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
+			selfVoters:[]testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
 				{2,[]testerTransaction{}}, // B
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					//A:mReward*1+vReward*1   B:mReward*1+vReward*1
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{1}, []uint64{100}, []uint64{100}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{1}, []uint64{200}, []uint64{200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
-
 
 		//case 1:balance0 A,B两个自选签名者(A,B)，目前出了2个块 C虽然没有参与出块，但是c投票的B出块了  所以
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
 				{2,[]testerTransaction{{from: "C", to: "B", balance:100, isVote: true}}}, // B
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A":CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{1}, []uint64{100}, []uint64{100}),
-					"B":CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{1}, []uint64{200}, []uint64{300}),
-					"C":CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 0, []uint64{1}, []uint64{100}, []uint64{300}),
-				},
-			},
 		},
+
 
 		//case 2:balance0 A,B两个自选签名者(A,B)，区块2A转投给B B挖出区块三A会有投票奖励   同时之前A投A时候出的块也有A的投票奖励
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -525,18 +456,15 @@ func TestReward(t *testing.T)  {
 				{3,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{1,1}, []uint64{100,100}, []uint64{100,300}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{1}, []uint64{200}, []uint64{300}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case3: C投票给B但是余额不满足投票限制  因此投票失败  不会拿到B出块产生的投票奖励
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -545,19 +473,16 @@ func TestReward(t *testing.T)  {
 				{3,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{2}, []uint64{100}, []uint64{100}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{1}, []uint64{200}, []uint64{200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case4:A在区块2把票转投给C 之前A出过一个块  有出块奖励,以后A出块将不会给自己分投票奖励
 		//此时C还未被加入到签名者队列(新的签名轮次没来),c并没有任何奖励
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -566,18 +491,15 @@ func TestReward(t *testing.T)  {
 				{4,[]testerTransaction{}},//b
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{1}, []uint64{100}, []uint64{100}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{2}, []uint64{200}, []uint64{200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case5:base4 新的签名轮次到达  C参与出块会获得奖励
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -588,19 +510,16 @@ func TestReward(t *testing.T)  {
 				{6,[]testerTransaction{}},//c  new loop:c b a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{1,1}, []uint64{100,280}, []uint64{100,280}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{2}, []uint64{200}, []uint64{200}),
-					"C": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{0}, []uint64{200}, []uint64{200}),
-				},
-			},
 		},
 
 		//case6:在区块2 A把票转投给了B,B把票投给了A 但是在此前区块1A还是出块者A的投票者  会有投票奖励
 		//后面他们各自得到自己的挖矿奖励和对方挖矿的投票奖励
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -610,19 +529,16 @@ func TestReward(t *testing.T)  {
 				{5,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{1,2}, []uint64{100,100}, []uint64{100,100}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{1,1}, []uint64{200,200}, []uint64{200,200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case7:在区块2 A把票转投给了B,  区块4B把票投给了A 这个时候要注意在投票前各自的投票奖励与自己相关和投票比例变化
 		//后面他们各自得到自己的挖矿奖励和对方挖矿的投票奖励
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -632,18 +548,15 @@ func TestReward(t *testing.T)  {
 				{5,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{1,1,1}, []uint64{100,100,100}, []uint64{100,300,100}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{1,1}, []uint64{200,200}, []uint64{300,200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		//case8:在区块2 A把票转投给了B,  在区块4 A把票又投回给自己
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -653,18 +566,15 @@ func TestReward(t *testing.T)  {
 				{5,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{2,1}, []uint64{100,100}, []uint64{100,300}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{1,1}, []uint64{200,200}, []uint64{300,200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case9:base8 在区块5 A把票又投回给自己  此时只出块到7 A被投但还未加入出块者中
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -676,18 +586,15 @@ func TestReward(t *testing.T)  {
 				{7,[]testerTransaction{}},//b
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{2,2}, []uint64{100,100}, []uint64{100,300}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 4, []uint64{2,2}, []uint64{200,200}, []uint64{300,200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case10:base9 此时只出块到12 A被加入出块者中
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -705,19 +612,16 @@ func TestReward(t *testing.T)  {
 
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 4, []uint64{3,2}, []uint64{100,100}, []uint64{100,300}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 8, []uint64{2,6}, []uint64{200,200}, []uint64{300,200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case11:区块4产生多个新的投票  区块6新的签名队列开始出块
 		//c,d未出块且他们选出的签名者也没有出块
 		{
 			addrNames:        []string{"A", "B", "C", "D", "E", "F", "H"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 260}, {"B", 205}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -730,22 +634,15 @@ func TestReward(t *testing.T)  {
 				{8,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 4, []uint64{4}, []uint64{260}, []uint64{260}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{2}, []uint64{205}, []uint64{205}),
-					"C": big.NewInt(0),
-					"D": big.NewInt(0),
-					"E": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{1}, []uint64{260}, []uint64{260}),
-					"F": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 0, []uint64{1}, []uint64{320}, []uint64{320}),
-					"H": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 1, []uint64{0}, []uint64{205}, []uint64{205}),
-				},
-			},
 		},
 
 		// case12:发起提议改变旷工奖励比例为千分之816,发起提议但无人响应  故依旧使用默认
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -755,18 +652,15 @@ func TestReward(t *testing.T)  {
 				{5,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{3}, []uint64{100}, []uint64{100}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{2}, []uint64{200}, []uint64{200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case13:base12 but同意节点只有A不足2/3
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -776,18 +670,15 @@ func TestReward(t *testing.T)  {
 				{5,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{3}, []uint64{100}, []uint64{100}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{2}, []uint64{200}, []uint64{200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case14:base13 同意节点超过2/3 但是没到新的奖励周期 比例海安原来算
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -797,18 +688,15 @@ func TestReward(t *testing.T)  {
 				{5,[]testerTransaction{}},//a
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{3}, []uint64{100}, []uint64{100}),
-					"B": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 2, []uint64{2}, []uint64{200}, []uint64{200}),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case15:base14 新的奖励比例生效
 		{
 			addrNames:        []string{"A", "B", "C"},
+			period:3,
+			epoch:10,
+			minVoterBalance:100,
+			maxSignerCount:5,
 			selfVoters:       []testerSelfVoter{{"A", 100}, {"B", 200}},
 			txHeaders: []testerBlockHeader{
 				{1,[]testerTransaction{}}, // 1 A
@@ -821,15 +709,6 @@ func TestReward(t *testing.T)  {
 				{8,[]testerTransaction{}},//b 8   //这里开始按新的奖励比例计算
 			},
 			historyHashes: []string{"a", "b", "c", "d", "e"},
-			result:testerRewardResult{
-				map[string]*big.Int{
-					"A": CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 4, []uint64{4}, []uint64{100}, []uint64{100}),
-					"B": big.NewInt(0).Add(
-						CalReward(defaultBlockReward, defaultMinerRewardPerThousand, 3, []uint64{3}, []uint64{200}, []uint64{200}),
-						CalReward(defaultBlockReward, uint64(816), 1, []uint64{1}, []uint64{200}, []uint64{200})),
-					"C": big.NewInt(0),
-				},
-			},
 		},
 
 		// case16:奖励衰减怎么测 如果针对一个块块号简单  这里连续块,总不能一直从块1算到一年后的块 再想想
@@ -848,10 +727,13 @@ func TestReward(t *testing.T)  {
 
 		//账户池
 		accountsPool := newTestAccountPool()
+		//地址账户名反向表
+		addrReverseMap := make(map[common.Address]string)
 		_, ks := tmpKeyStore(t, true)
 		for _, name := range tt.addrNames {
 			account, _ := ks.NewAccount(name)
 			accountsPool.accounts[name] = &account
+			addrReverseMap[account.Address] = name
 			ks.Unlock(account, name)
 		}
 
@@ -898,7 +780,6 @@ func TestReward(t *testing.T)  {
 			var currentBlockVotes []Vote
 			var currentBlockProposals []Proposal
 			var currentBlockDeclares []Declare
-			var modifyPredecessorVotes []Vote
 			for _, trans := range header.txs {
 				if trans.isVote && big.NewInt(int64(trans.balance)).Cmp(alienCfg.MinVoterBalance) >= 0 {
 					currentBlockVotes = append(currentBlockVotes, Vote{
@@ -938,13 +819,7 @@ func TestReward(t *testing.T)  {
 							Declarer:     accountsPool.accounts[trans.from].Address,
 							Decision:     trans.decision,
 						})
-
 					}
-				} else {
-					modifyPredecessorVotes = append(modifyPredecessorVotes, Vote{
-						Voter: accountsPool.accounts[trans.from].Address,
-						Stake: big.NewInt(int64(trans.balance)),
-					})
 				}
 			}
 			currentHeaderExtra := HeaderExtra{}
@@ -984,7 +859,6 @@ func TestReward(t *testing.T)  {
 			}
 
 			currentHeaderExtra.CurrentBlockVotes = currentBlockVotes
-			currentHeaderExtra.ModifyPredecessorVotes = modifyPredecessorVotes
 			currentHeaderExtra.CurrentBlockProposals = currentBlockProposals
 			currentHeaderExtra.CurrentBlockDeclares = currentBlockDeclares
 			currentHeaderExtraEnc, err := encodeHeaderExtra(alienCfg, big.NewInt(int64(j)), currentHeaderExtra)
@@ -1015,25 +889,22 @@ func TestReward(t *testing.T)  {
 				continue
 			}
 
-			//core.NewBlockChain(db, nil, chainCfg, alien, vm.Config{})
-
-			/*var receipts []*types.Receipt
-			var blockGen *core.BlockGen
-			//todo GasLimit设置头
-			blockGen.SetCoinbase(signer)
-			for k, _ := range header.txs {
-
-				tx := types.NewTransaction(
-					uint64(k),
-					common.Address{},
-					big.NewInt(0), 0, big.NewInt(0),
-					nil,
-				)
-				receipt, _, err := core.ApplyTransaction(chainCfg, bc, &b.header.Coinbase, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed, vm.Config{})
-			}*/
+			// 这次奖励发放前所有地址的余额
+			lastBances := testerRewardResult{}
+			lastBances.balance = make(map[string]*big.Int)
+			for _, name := range tt.addrNames {
+				lastBances.balance[name] = state.GetBalance(accountsPool.accounts[name].Address)
+			}
 
 			//reward
 			accumulateRewards(chainCfg, state, headers[j], snap, nil)
+
+			// 当前区块产生的奖励分配,从链上查询到的
+			currentRewardsInChain := testerRewardResult{}
+			currentRewardsInChain.balance = make(map[string]*big.Int)
+			for _, name := range tt.addrNames {
+				currentRewardsInChain.balance[name] = big.NewInt(0).Sub(state.GetBalance(accountsPool.accounts[name].Address), lastBances.balance[name])
+			}
 
 			// 构造historyHash
 			for _, string := range tt.historyHashes {
@@ -1044,17 +915,60 @@ func TestReward(t *testing.T)  {
 				//snap.HistoryHash = append(snap.HistoryHash, hash)
 				snap.Hash = hash
 			}
+
+			//currentReward := CalReward(SignerBlockReward, minerRewardPerThousand, 1, )
+
+			// cal test
+			minerRewardPerT := minerRewardPerThousand
+			var currentVotersForSigner []map[string]*big.Int
+			currentTally := big.NewInt(0)
+			for _, vote := range snap.Votes {
+				if vote.Candidate == headers[j].Coinbase {
+					currentTally.Add(currentTally, vote.Stake)
+					voteCount := make(map[string]*big.Int)
+					voteCount[addrReverseMap[vote.Voter]] = vote.Stake
+					currentVotersForSigner = append(currentVotersForSigner, voteCount)
+				}
+			}
+			for _, proposal := range snap.Proposals{
+				if proposal.ProposalType == 3 {
+					if uint64(j+1) == proposal.ReceivedNumber.Uint64()+proposal.ValidationLoopCnt*tt.maxSignerCount+1 {
+						minerRewardPerT = proposal.MinerRewardPerThousand
+					}
+				}
+			}
+			var currentRewardTest testerRewardResult
+			currentRewardTest.balance = make(map[string]*big.Int)
+			for _,name := range tt.addrNames {
+				currentRewardTest.balance[name] = big.NewInt(0)
+				if name == addrReverseMap[headers[j].Coinbase] {
+					currentRewardTest.balance[name].Add(currentRewardTest.balance[name], CalReward(SignerBlockReward, minerRewardPerT, 1, []uint64{0},[]uint64{0}, []uint64{100}))
+				}
+				for _,voteCount := range currentVotersForSigner {
+					for key,count := range voteCount {
+						if name  == key {
+							currentRewardTest.balance[name].Add(currentRewardTest.balance[name], CalReward(SignerBlockReward, minerRewardPerT, 0, []uint64{1},[]uint64{count.Uint64()}, []uint64{currentTally.Uint64()}))
+						}
+					}
+				}
+			}
+
+			// verify reward
+			for name, reward := range currentRewardsInChain.balance {
+				if reward.Cmp(currentRewardTest.balance[name]) != 0 {
+					t.Errorf("tesetReward case%d-Number:%v fail:%s balance:%v in BLC dismatch %v in test result\n", i, j+1, name, state.GetBalance(accountsPool.accounts[name].Address), tt.result.balance[name])
+				}
+			}
 		}
 
-		// verify reward
 		//balance := state.GetBalance(accountsPool.accounts["A"].Address)
 		//fmt.Println("check balance", balance.Uint64())
 		//fmt.Println("check balance", balance.Div(balance, new(big.Int).SetUint64(1e+18)))
-		for _, name := range tt.addrNames {
-			if state.GetBalance(accountsPool.accounts[name].Address).Cmp(tt.result.balance[name]) != 0{
-				t.Errorf("tesetReward case%d fail:%s balance:%v in BLC dismatch %v in test result\n", i, name, state.GetBalance(accountsPool.accounts[name].Address), tt.result.balance[name])
-			}
-		}
+		//for _, name := range tt.addrNames {
+		//	if state.GetBalance(accountsPool.accounts[name].Address).Cmp(tt.result.balance[name]) != 0{
+		//		t.Errorf("tesetReward case%d fail:%s balance:%v in BLC dismatch %v in test result\n", i, name, state.GetBalance(accountsPool.accounts[name].Address), tt.result.balance[name])
+		//	}
+		//}
 
 	}
 }
