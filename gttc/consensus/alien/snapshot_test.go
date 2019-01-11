@@ -47,6 +47,7 @@ type testerTransaction struct {
 	//add
 	minerRewardPerT uint64
 	validationLoopCnt uint64
+	receivedNumber uint64
 }
 
 type testerSingleHeader struct {
@@ -124,10 +125,7 @@ func (r *testerChainReader) CurrentHeader() *types.Header                { panic
 func (r *testerChainReader) GetBlock(common.Hash, uint64) *types.Block   { panic("not supported") }
 func (r *testerChainReader) GetHeaderByHash(common.Hash) *types.Header   { panic("not supported") }
 func (r *testerChainReader) GetHeaderByNumber(number uint64) *types.Header {
-	//if number == 0 {
 		return rawdb.ReadHeader(r.db, rawdb.ReadCanonicalHash(r.db, number), number)
-	//}
-	//panic("not supported")
 }
 
 // Tests that voting is evaluated correctly for various simple and complex scenarios.

@@ -767,7 +767,6 @@ func (a *Alien) Finalize(chain consensus.ChainReader, header *types.Header, stat
 			}
 
 			currentHeaderExtra.SignerQueue = newSignerQueue
-
 		}
 	} else {
 		// use currentHeaderExtra.SignerQueue as signer queue
