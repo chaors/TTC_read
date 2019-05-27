@@ -16,10 +16,15 @@ import (
 	"testing"
 	"time"
 )
-
+//V1.2.0
 const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
+)
+
+const (
+	veryLightScryptN1 = 2
+	veryLightScryptP1 = 1
 )
 
 type testerBlockHeader struct {
