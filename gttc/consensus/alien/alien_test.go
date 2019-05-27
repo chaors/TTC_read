@@ -19,6 +19,7 @@ import (
 //V1.2.0
 //V140dev
 //140.111
+//150
 const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
