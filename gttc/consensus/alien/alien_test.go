@@ -17,6 +17,7 @@ import (
 	"time"
 )
 //V1.2.0
+//这个是要撤销的
 const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
