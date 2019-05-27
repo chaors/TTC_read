@@ -22,6 +22,11 @@ const (
 	veryLightScryptP = 1
 )
 
+const (
+	veryLightScryptN1 = 2
+	veryLightScryptP1 = 1
+)
+
 type testerBlockHeader struct {
 	number uint64
 	txs []testerTransaction
