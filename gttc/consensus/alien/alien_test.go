@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 )
-
+//V1.0
 const (
 	veryLightScryptN = 2
 	veryLightScryptP = 1
